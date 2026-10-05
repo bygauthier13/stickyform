@@ -341,9 +341,15 @@ async function submit() {
   const started = performance.now();
   const landed = engine.finale(); // lift, then the closing cadence
   let shown = 0;
+  let slow = false;
+  // rendering can take a while on older phones — say so rather than look frozen
+  const slowTimer = setTimeout(() => {
+    slow = true;
+    el.composingLine.textContent = 'Taking a little longer on this device — nearly there';
+  }, 18000);
   const setProgress = (p) => {
     const i = Math.min(PHRASES.length - 1, Math.floor(p * PHRASES.length));
-    if (i !== shown) {
+    if (i !== shown && !slow) {
       shown = i;
       el.composingLine.textContent = PHRASES[i];
     }
@@ -354,12 +360,14 @@ async function submit() {
   try {
     result = await engine.renderTrack(profile, { onProgress: setProgress });
   } catch (err) {
+    clearTimeout(slowTimer);
     console.error(err);
     el.composingError.textContent = 'Your browser couldn’t render the audio. Please try again in a recent version of Chrome, Edge, Firefox or Safari.';
     el.composingError.hidden = false;
     submitting = false;
     return;
   }
+  clearTimeout(slowTimer);
   setProgress(1);
   // let the closing chord land and the "composing" moment breathe
   await Promise.all([landed, wait(Math.max(0, 4800 - (performance.now() - started)))]);

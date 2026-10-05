@@ -92,9 +92,11 @@ function osc(ctx, type, freq, t0, t1, cents = 0) {
 }
 
 function noiseSrc(ctx, t, dur) {
+  const buf = noiseBuffer(ctx);
   const s = ctx.createBufferSource();
-  s.buffer = noiseBuffer(ctx);
-  s.start(t, Math.random() * 2.2);
+  s.buffer = buf;
+  // start somewhere random, but never so late that the buffer runs out before the voice ends
+  s.start(t, Math.random() * Math.max(0, Math.min(2.2, buf.duration - dur - 0.02)));
   s.stop(t + dur);
   return s;
 }
@@ -188,13 +190,13 @@ export function snare(ctx, out, t, { vel = 0.6, tune = 190 } = {}) {
   n.connect(bp).connect(ng).connect(out);
 }
 
-export function hat(ctx, out, t, { vel = 0.4, open = false, pan = 0, hp = 7400 } = {}) {
+export function hat(ctx, out, t, { vel = 0.4, open = false, pan = 0, hp = 6000 } = {}) {
   const dur = open ? 0.55 : 0.12;
   const n = noiseSrc(ctx, t, dur);
   const hpf = biquad(ctx, 'highpass', hp, 0.8);
-  const lpf = biquad(ctx, 'lowpass', 14500, 0.5);
+  const lpf = biquad(ctx, 'lowpass', 11000, 0.5);
   const g = ctx.createGain();
-  percEnv(g, t, vel, 0.0015, open ? 0.07 : 0.011);
+  percEnv(g, t, vel, 0.0015, open ? 0.07 : 0.012);
   let node = n.connect(hpf).connect(lpf).connect(g);
   if (pan) node = node.connect(panner(ctx, pan));
   node.connect(out);
@@ -505,18 +507,19 @@ export function lead(ctx, out, t, dur, freq, { kind = 'glass', vel = 0.14, pan =
 
 // ------------------------------------------------------ transitions & impact
 
-/** Filtered-noise swell with a rising sine underneath, ending exactly at t + dur. */
+/** Filtered-noise swell with a quiet rising sine underneath, ending exactly at t + dur. */
 export function riser(ctx, out, t, dur, { vel = 0.2, from = 400, to = 9000, tone = 220, pan = 0 } = {}) {
   const d = Math.min(dur, 2.8);
   const t0 = t + dur - d;
   const end = t0 + d;
   const n = noiseSrc(ctx, t0, d + 0.1);
-  const bp = biquad(ctx, 'bandpass', from, 1.2);
+  const bp = biquad(ctx, 'bandpass', from, 0.7);
   bp.frequency.setValueAtTime(from, t0);
   bp.frequency.exponentialRampToValueAtTime(to, end);
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(vel, end - 0.04);
+  // (calibrated: a bandpassed noise swell peaks ≈ -15 dBFS at vel 0.2, a touch under the melody)
+  g.gain.exponentialRampToValueAtTime(vel * 0.9, end - 0.04);
   g.gain.linearRampToValueAtTime(0.0001, end + 0.06);
   let node = n.connect(bp).connect(g);
   if (pan) node = node.connect(panner(ctx, pan));
@@ -527,7 +530,7 @@ export function riser(ctx, out, t, dur, { vel = 0.2, from = 400, to = 9000, tone
   o.frequency.exponentialRampToValueAtTime(tone * 2, end);
   const og = ctx.createGain();
   og.gain.setValueAtTime(0.0001, t0);
-  og.gain.exponentialRampToValueAtTime(vel * 0.5, end - 0.04);
+  og.gain.exponentialRampToValueAtTime(vel * 0.3, end - 0.04);
   og.gain.linearRampToValueAtTime(0.0001, end + 0.06);
   o.connect(og).connect(out);
 }
