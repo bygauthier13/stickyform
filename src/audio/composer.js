@@ -22,7 +22,17 @@ export const defaultState = () => ({
  * eight layers sit in a sensible balance: the bass is felt rather than heard,
  * the harmony and melody carry the mids, the texture is a veil.
  */
-export const LAYER_TRIM = [1.56, 4.5, 0.16, 0.97, 1.58, 1.83, 0.61, 0.8];
+export const LAYER_TRIM = [1.56, 4.5, 0.16, 0.97, 1.58, 1.72, 0.4, 0.8];
+
+/**
+ * Arrival emphasis: a layer is up to ~4 dB louder when it first enters, then
+ * settles back into the mix as the next layers join — so every entrance is
+ * clearly heard without the finished arrangement getting top-heavy.
+ */
+const emphasis = (p, enter) => {
+  const x = Math.min(1, Math.max(0, (p - enter) / 0.3));
+  return 1 + 0.7 * (1 - x * x * (3 - 2 * x));
+};
 
 /** Layer entrance: arrives at ~50% on the bar it enters, full a question later. */
 const entrance = (p, enter) => (p < enter ? 0 : Math.min(1, 0.5 + (p - enter) / 0.09));
@@ -34,26 +44,30 @@ function levelFor(i, st, barDur) {
   // the drop that follows lands as a genuine change in energy.
   const bd = st.breakdown ? 0.6 : 1;
   const out = (lv, ramp = barDur * 0.9) => ({ lv: lv * bd, ramp });
+  // entering layers (1–6) carry the arrival emphasis
+  const enter = (i, ramp) => out(entrance(p, LAYER_ENTER[i]) * emphasis(p, LAYER_ENTER[i]), ramp);
   switch (i) {
     case 0: // ambient: foundation that gently recedes as the arrangement fills in
-      return out(st.breakdown ? 1 : 1 - 0.5 * p);
+      // the drone is the foreground while alone, then recedes into a bed
+      return out(st.breakdown ? 1 : 1 - 0.55 * smooth(p, 0.1, 0.5));
     case 1:
       if (st.breakdown || st.resolve >= 2) return out(0, 0.08);
-      return out(entrance(p, LAYER_ENTER[1]), barDur * 0.5);
+      return enter(1, barDur * 0.5);
     case 2:
       if (st.breakdown) return out(0, 0.08);
-      return out(entrance(p, LAYER_ENTER[2]), barDur * 0.5);
+      return enter(2, barDur * 0.5);
     case 3:
       // in a breakdown only the fill into the drop remains
       if ((st.breakdown && !st.lift) || st.resolve === 3) return out(0, 0.08);
+      // the drums already build in stages (kick → hats → clap), so no extra emphasis
       return out(entrance(p, LAYER_ENTER[3]), st.drop ? 0.02 : barDur * 0.4);
     case 4:
-      return out(entrance(p, LAYER_ENTER[4]), barDur * 0.5);
+      return enter(4, barDur * 0.5);
     case 5:
       if (st.resolve === 3) return out(0, 0.08);
-      return out(entrance(p, LAYER_ENTER[5]), barDur * 0.5);
+      return enter(5, barDur * 0.5);
     case 6:
-      return out(entrance(p, LAYER_ENTER[6]), barDur * 0.6);
+      return enter(6, barDur * 0.6);
     default:
       return out(1, 0.01);
   }

@@ -53,13 +53,13 @@ function spontaneityVisual() {
     let a = 0x9e3779b9;
     return () => ((a = (Math.imul(a ^ (a >>> 15), 0x2c1b3c6d) + 0x297a2d39) | 0), ((a >>> 0) / 4294967296));
   })();
-  const jitter = Array.from({ length: 140 }, () => rnd() * 2 - 1);
-  const jitter2 = Array.from({ length: 140 }, () => rnd() * 2 - 1);
+  const n = 140; // segments → n + 1 points
+  const jitter = Array.from({ length: n + 1 }, () => rnd() * 2 - 1);
+  const jitter2 = Array.from({ length: n + 1 }, () => rnd() * 2 - 1);
 
   function draw(v) {
     const t = v / 100;
     const pts = [];
-    const n = 140;
     for (let i = 0; i <= n; i++) {
       const x = (i / n) * W;
       const wave = Math.sin((i / n) * Math.PI * 6);

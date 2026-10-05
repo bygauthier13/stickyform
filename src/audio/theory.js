@@ -169,10 +169,35 @@ export const MOTIFS = [
   { name: 'Breath', notes: [[0, 7, 8], [8, 6, 4], [12, 4, 4], [16, 5, 6], [22, 4, 2], [24, 2, 8]] },
 ];
 
-/** Pitch for a chord-relative scale degree, folded into a singable register. */
-export function melodyPitch(chord, degree, { target = 69, lo = 60, hi = 88 } = {}) {
-  const rootM = nearestPc(chord.root, target);
-  let m = SCALE[SCALE.indexOf(rootM) + degree];
+// Each motif's centre of gravity (duration-weighted mean degree), used to place
+// the whole hook in one register regardless of which chord it is played over.
+for (const m of MOTIFS) {
+  let sum = 0;
+  let weight = 0;
+  for (const [, degree, len] of m.notes) {
+    sum += degree * len;
+    weight += len;
+  }
+  m.center = Math.round(sum / weight);
+}
+
+/**
+ * Pitch for a chord-relative scale degree.
+ *
+ * The chord root's octave is chosen so the *centre of the motif* sits nearest
+ * `target`. That keeps every note of the hook in the same register over every
+ * chord — folding notes into a range one at a time would break its contour.
+ * `lo`/`hi` are only a safety net.
+ */
+export function melodyPitch(chord, degree, { center = 4, target = 72, lo = 55, hi = 94 } = {}) {
+  let best = null;
+  for (let r = 36; r <= 90; r++) {
+    if (r % 12 !== chord.root) continue;
+    const c = SCALE[SCALE.indexOf(r) + center];
+    const dist = Math.abs(c - target);
+    if (best === null || dist < best.dist) best = { r, dist };
+  }
+  let m = SCALE[SCALE.indexOf(best.r) + degree];
   while (m > hi) m -= 12;
   while (m < lo) m += 12;
   return m;

@@ -392,11 +392,13 @@ function harmonyLayer(ctx, mixer, live) {
 
 // ---------------------------------------------------------------- 5 · melody
 
-const LEAD_TARGET = { glass: 72, pluck: 69, felt: 67, kalimba: 72 };
+// centre of the melody's register per timbre (MIDI): bells shine higher, soft leads sit lower
+const LEAD_TARGET = { glass: 77, pluck: 72, felt: 69, kalimba: 74 };
 
 function melodyLayer(ctx, mixer, live) {
   const bus = mixer.createBus({ reverb: 0.45, delay: 0.5, duck: 0.2, meter: live });
   const L = makeLayer('Melody', [bus]);
+  let prevCentre = null; // where the previous bar's hook sat — the next bar aims near it
 
   L.bar = (env) => {
     const { ctx: c, profile, chord, cycleBar, st, stepDur, at, rnd, barDur } = env;
@@ -408,8 +410,12 @@ function melodyLayer(ctx, mixer, live) {
     const energyGain = 0.9 + 0.25 * profile.energy;
     const pan = kind === 'kalimba' ? -0.12 : 0.1;
 
+    // aim halfway between the home register and the previous bar: a smooth line, never an octave hop
+    const aim = prevCentre === null ? target : (prevCentre + target) / 2;
+    prevCentre = melodyPitch(chord, motif.center, { target: aim, center: motif.center });
+
     const play = (step, degree, len, accent = 1) => {
-      const midi = settleNote(chord, melodyPitch(chord, degree, { target }));
+      const midi = settleNote(chord, melodyPitch(chord, degree, { target: aim, center: motif.center }));
       S.lead(c, bus.input, at(step) + (rnd() - 0.5) * 0.006, len * stepDur * (kind === 'pluck' ? 0.9 : 1), midiToHz(midi), {
         kind,
         vel: 0.15 * accent * energyGain * (0.88 + rnd() * 0.24),
@@ -421,7 +427,7 @@ function melodyLayer(ctx, mixer, live) {
     if (st.resolve === 3) return;
     if (st.resolve === 2) {
       // Final phrase: the tonic, left to ring.
-      const midi = melodyPitch(chord, 7, { target: 72, lo: 62, hi: 80 });
+      const midi = melodyPitch(chord, 7, { target: 74, center: 7 });
       S.lead(c, bus.input, at(2), barDur * 1.5, midiToHz(midi), { kind: kind === 'pluck' ? 'felt' : kind, vel: 0.17, bright: 0.5 });
       return;
     }

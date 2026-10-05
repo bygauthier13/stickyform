@@ -70,14 +70,31 @@ for (const motif of MOTIFS) {
   for (const name of allChords) {
     const chord = CHORDS[name];
     for (const [step, degree, len] of motif.notes) {
-      for (const target of [67, 69, 72]) {
-        const raw = melodyPitch(chord, degree, { target });
+      for (const target of [69, 72, 77]) {
+        const raw = melodyPitch(chord, degree, { target, center: motif.center });
         const note = settleNote(chord, raw);
         total++;
         if (note !== raw) nudged++;
         ok(SCALE.includes(note), `${motif.name}/${name}: ${note} not in scale`);
-        ok(note >= 58 && note <= 90, `${motif.name}/${name}: ${note} out of register`);
+        ok(note >= 55 && note <= 94, `${motif.name}/${name}: ${note} out of register`);
         ok(!clashes(chord, note), `${motif.name}/${name} step ${step} len ${len}: ${note} clashes`);
+      }
+    }
+  }
+}
+
+// ---- melody contour: consecutive notes within a bar never leap more than a sixth,
+//      over any chord — the hook keeps its shape wherever it lands
+for (const motif of MOTIFS) {
+  for (const name of allChords) {
+    const chord = CHORDS[name];
+    for (const half of [0, 16]) {
+      const bar = motif.notes.filter(([s]) => s >= half && s < half + 16);
+      let last = null;
+      for (const [, degree] of bar) {
+        const note = settleNote(chord, melodyPitch(chord, degree, { target: 77, center: motif.center }));
+        if (last !== null) ok(Math.abs(note - last) <= 9, `${motif.name}/${name}: leap of ${Math.abs(note - last)} semitones (${last}→${note})`);
+        last = note;
       }
     }
   }
