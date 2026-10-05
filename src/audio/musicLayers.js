@@ -14,7 +14,7 @@
 
 import * as S from './synth.js';
 import { hit } from './drumBank.js';
-import { CHORDS, bassMidi, chordLadder, melodyPitch, midiToHz, MOTIFS, settleNote } from './theory.js';
+import { bassMidi, chordLadder, melodyPitch, midiToHz, MOTIFS, settleNote } from './theory.js';
 
 export const LAYER_NAMES = ['Ambient', 'Pulse', 'Bass', 'Rhythm', 'Harmony', 'Melody', 'Texture', 'Resolution'];
 /** Progress (0–1) at which each layer first enters. Layer 8 only appears at the end. */
@@ -314,6 +314,11 @@ function rhythmLayer(ctx, mixer, live) {
       }
     }
     if (st.lift) for (let s = 8; s < 16; s++) hit(c, clapBus.input, at(s), B.clapRoll, PERC * (0.1 + 0.3 * ((s - 8) / 7)));
+    else if (env.cycleBar === 3 && (bar >> 2) % 2 === 1 && p >= 0.6 && st.resolve < 0) {
+      // turnaround fill every eight bars: a short rising roll into the next phrase
+      [13, 14, 15].forEach((s, i) => hit(c, clapBus.input, at(s), B.clapRoll, PERC * (0.08 + 0.07 * i) * e));
+      hit(c, hatR.input, at(14), B.ohat1, 0.3 * PERC * e);
+    }
   };
   return L;
 }
@@ -422,7 +427,12 @@ function melodyLayer(ctx, mixer, live) {
         bright: profile.bright,
         pan: pan * (rnd() < 0.5 ? 1 : -1),
       });
+      if (lift) {
+        // development: the hook doubled an octave above, softly, for a lift
+        S.lead(c, bus.input, at(step) + 0.004, len * stepDur, midiToHz(midi + 12), { kind: 'glass', vel: 0.05 * accent, bright: 0.7, pan: -pan });
+      }
     };
+    const lift = env.p >= 0.95 && st.resolve < 0 && (env.bar >> 2) % 4 === 3;
 
     if (st.resolve === 3) return;
     if (st.resolve === 2) {
@@ -506,7 +516,7 @@ function textureLayer(ctx, mixer, live) {
 
     if (st.resolve >= 2) return;
     const ladder = chordLadder(chord, 79, 96);
-    const count = Math.round(2 + profile.sparkle * 9);
+    const count = Math.max(2, Math.round(2 + profile.sparkle * 9 + (((env.bar >> 2) % 3) - 1) * 1.6));
     const steps = SPARKLE_ORDER.slice(0, count).sort((a, b) => a - b);
     steps.forEach((step, i) => {
       const note = ladder[(i * 2 + env.cycleBar) % ladder.length];
@@ -550,7 +560,7 @@ function resolutionLayer(ctx, mixer, live) {
   L.impact = (c, t, vel) => S.impact(c, bus.input, t, { vel });
 
   L.bar = (env) => {
-    const { ctx: c, st, chord, t0, barDur, profile } = env;
+    const { ctx: c, st, chord, t0, barDur } = env;
     if (st.lift) {
       S.riser(c, bus.input, t0, barDur, { vel: 0.2, from: 450, to: 11000, tone: 196 });
     }
@@ -597,4 +607,3 @@ export function createLayers(ctx, mixer, { live = false } = {}) {
   ];
 }
 
-export { CHORDS };

@@ -147,11 +147,13 @@ npm test            # music-theory checks: every chord diatonic, voicings in ran
                     # voice-led, no melody note clashes with its chord, profile mapping
 ```
 
+`npm run test:e2e` needs Playwright and a Chromium (`npm i -D playwright && npx playwright install chromium`). It drives the whole app — keyboard flow, Back, the multi-select limit, sound switch and its session persistence, mobile layout, reduced motion, a second run after "Start over", and strict validation of the downloaded WAV.
+
 The audio itself was verified by rendering offline and analysing the result — per-layer solo balance, spectral distribution, loudness curve across the arrangement, WAV validity (`ffprobe`/`ffmpeg`), and in-key energy — and the full journey was driven end to end in headless Chromium at desktop and phone sizes.
 
 ## Notes & limits
 
 * Audio export is WAV only (no MP3 encoder is bundled to keep the project dependency-free).
-* Rendering the final track takes a few seconds on a modern laptop (longer on slow devices); the composing screen reports real progress, and the live closing cadence masks most of the wait.
+* Rendering the final track happens in the browser and is CPU-bound. It took ≈ 35 s in the slow, shared VM used for development (a 2-minute track at 44.1 kHz), and is expected to be considerably faster on current laptops and phones. The composing screen reports real progress, the live closing cadence covers the first ~8 s, and a reassurance message appears if it runs long.
 * On iOS the ringer switch no longer mutes Web Audio (`navigator.audioSession` is set to `playback`).
 * Fonts are bundled locally, so the page needs no network at all once served.

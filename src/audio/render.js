@@ -10,7 +10,6 @@ import { Composer, defaultState } from './composer.js';
 import { getDrumBank } from './drumBank.js';
 import { createMixer } from './fx.js';
 
-export const TRACK_BARS = 52;
 const LEAD_IN = 0.12;
 const TAIL = 6.5;
 

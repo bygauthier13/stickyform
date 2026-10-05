@@ -187,6 +187,10 @@
   border-radius: 8px;
   border-bottom-color: transparent;
 }
+.opt input:focus-visible ~ .opt-check {
+  /* fallback for browsers without :has() */
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent);
+}
 .opt-key {
   display: grid;
   place-items: center;

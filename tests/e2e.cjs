@@ -347,6 +347,20 @@ function parseWav(file) {
       await until(async () => !(await engineState(page)).ready, { timeout: 5000, msg: 'engine disposed' });
       assert(await page.isVisible('#start'));
     });
+
+    await step('a second run works after "Start over" (fresh audio, reset form and accent)', async () => {
+      await page.click('#start');
+      await page.waitForSelector('#qtitle');
+      await until(async () => (await engineState(page)).state === 'running', { msg: 'engine running again' });
+      eq(await qcur(page), '01', 'form restarted on question 1');
+      assert(await isDisabled(page), 'Continue disabled again');
+      assert((await page.textContent('#layers-text')).includes('Layer 1 of 8'), 'layer strip reset');
+      const accent = await page.evaluate(() => document.documentElement.style.getPropertyValue('--accent').trim().toLowerCase());
+      eq(accent, '#d8bf8f', 'accent colour reset to the default');
+      await page.keyboard.press('2');
+      await page.keyboard.press('Enter');
+      await until(async () => (await qcur(page)) === '02', { msg: 'advance on second run' });
+    });
     await ctx.close();
 
     // ================================================================ mobile

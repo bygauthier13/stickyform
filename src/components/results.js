@@ -182,7 +182,8 @@ export function mountResults(root, { result, player, summary, ensureSound, onRes
       g.fillStyle = f <= progress ? accent : fg;
       g.globalAlpha = f <= progress ? 1 : 0.26;
       g.beginPath();
-      g.roundRect(x, (H - hgt) / 2, barW, hgt, barW / 2);
+      if (g.roundRect) g.roundRect(x, (H - hgt) / 2, barW, hgt, barW / 2);
+      else g.rect(x, (H - hgt) / 2, barW, hgt); // older Safari
       g.fill();
     }
     g.globalAlpha = 1;
