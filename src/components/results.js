@@ -9,7 +9,8 @@ import { clamp, h, ICONS, prefersReducedMotion } from './dom.js';
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const mb = (bytes) => `${(bytes / 1048576).toFixed(bytes > 1.05e7 ? 0 : 1)} MB`;
 
-const safeName = (s) => s.replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim();
+// Filenames stay plain ASCII: some browsers discard the name of a download that contains anything else.
+const safeName = (s) => s.normalize('NFKD').replace(/[^\x20-\x7e]/g, '').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim();
 
 /**
  * @param {HTMLElement} root
@@ -300,7 +301,7 @@ export function mountResults(root, { result, player, summary, ensureSound, onRes
         sizeKnown = true;
       }
     }
-    const a = h('a', { href: url, download: `${safeName(`StickySound – ${summary.mood} ${summary.style}`)}.wav`, class: 'sr-only' });
+    const a = h('a', { href: url, download: `${safeName(`StickySound - ${summary.mood} ${summary.style}`)}.wav`, class: 'sr-only' });
     document.body.append(a);
     a.click();
     a.remove();

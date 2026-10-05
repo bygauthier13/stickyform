@@ -114,7 +114,6 @@ export async function renderTrack(profile, { onProgress, sampleRate = 44100 } = 
   const ctx = new Offline(2, Math.ceil(duration * sampleRate), sampleRate);
   const mixer = createMixer(ctx);
   mixer.master.connect(ctx.destination);
-  globalThis.__tweak?.(mixer); // test hook for mix experiments
 
   const composer = new Composer(ctx, mixer, { bank: await getDrumBank(sampleRate) });
   composer.init(0, profile);
@@ -158,7 +157,7 @@ export async function renderTrack(profile, { onProgress, sampleRate = 44100 } = 
 
   const buffer = await ctx.startRendering();
   onProgress?.(1);
-  if (!globalThis.__noMaster) master(buffer);
+  master(buffer);
 
   return {
     buffer,

@@ -115,7 +115,7 @@ src/
   form/                 questions.js (data) · formEngine.js (state & navigation)
   components/           choice · cards · slider · text · field (audio-reactive lines) · results
   styles/               base · landing · form · results
-tests/                  theory.test.mjs (npm test) · e2e/ (Playwright)
+tests/                  theory.test.mjs (npm test) · e2e.cjs (npm run test:e2e, Playwright)
 ```
 
 ### Using the audio engine on its own

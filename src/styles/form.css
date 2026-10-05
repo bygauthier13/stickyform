@@ -806,6 +806,14 @@
   align-items: center;
   gap: 1.2rem;
   padding-block: 30px clamp(22px, 4.5vh, 44px);
+}
+/* the fade behind the bar spans the whole viewport, not just the content column */
+.actions::before {
+  content: '';
+  position: absolute;
+  inset: 0 calc(50% - 50vw);
+  z-index: -1;
+  pointer-events: none;
   background: linear-gradient(to top, var(--bg) 58%, transparent);
 }
 .actions-spacer {
@@ -977,6 +985,9 @@
     background: linear-gradient(to top, var(--bg) 62%, transparent);
     pointer-events: none;
   }
+  .actions::before {
+    display: none;
+  }
   .actions > * {
     pointer-events: auto;
   }
@@ -996,6 +1007,22 @@
   .btn-primary {
     flex: 1;
     padding-block: 1.1rem;
+  }
+}
+
+/* short laptop screens: keep the whole palette / mood set in view */
+@media (max-height: 840px) and (min-width: 641px) {
+  .cards-swatch {
+    max-width: 580px;
+  }
+  .swatch-chip {
+    aspect-ratio: 1 / 1;
+  }
+  .cards-mood .mood-art {
+    aspect-ratio: 1 / 1;
+  }
+  .cards {
+    row-gap: 24px;
   }
 }
 

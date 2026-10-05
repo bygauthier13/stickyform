@@ -19,7 +19,9 @@ export class SoundEffects {
     this.ctx = ctx;
     this.isOn = isOn;
     this.out = ctx.createGain();
-    this.out.gain.value = 0.9;
+    // Calibrated by measurement: the cues pass through the master and live fade, so
+    // this puts a selection ~12 dB under the music's peaks — clearly there, never loud.
+    this.out.gain.value = 4.5;
     this.out.connect(mixer.ui);
     const send = ctx.createGain();
     send.gain.value = 0.42;
@@ -112,7 +114,7 @@ export class SoundEffects {
     if (idx === this.lastSlider || now - this.lastSliderAt < 55) return;
     this.lastSlider = idx;
     this.lastSliderAt = now;
-    this._tone(this._t(), PENTA[idx] - 12 + 12, { vel: 0.04, decay: 0.3, bright: 0.3, pan: (v - 0.5) * 0.7, tick: 0.1 });
+    this._tone(this._t(), PENTA[idx] - 12 + 12, { vel: 0.025, decay: 0.3, bright: 0.3, pan: (v - 0.5) * 0.7, tick: 0.1 });
   }
 
   /** Typing: an almost subliminal tick-note, thinned out so fast typing stays calm. */
@@ -122,7 +124,7 @@ export class SoundEffects {
     if (now - this.lastType < 85) return;
     this.lastType = now;
     const note = PENTA[(char.toLowerCase().charCodeAt(0) || 0) % 7 + 3];
-    this._tone(this._t(), note, { vel: 0.026, decay: 0.16, bright: 0.2, tick: 0.3, pan: (Math.random() - 0.5) * 0.4 });
+    this._tone(this._t(), note, { vel: 0.017, decay: 0.16, bright: 0.2, tick: 0.3, pan: (Math.random() - 0.5) * 0.4 });
   }
 
   /** Moving forward: a soft air-swish and a low, rounded note. */
@@ -149,7 +151,7 @@ export class SoundEffects {
     bp.frequency.exponentialRampToValueAtTime(up ? 1900 : 450, t + 0.26);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.03, t + 0.09);
+    g.gain.linearRampToValueAtTime(up ? 0.03 : 0.05, t + 0.09);
     g.gain.linearRampToValueAtTime(0.0001, t + 0.3);
     n.connect(bp).connect(g).connect(this.out);
     n.start(t, Math.random() * 0.5);
@@ -160,7 +162,7 @@ export class SoundEffects {
   lift() {
     if (!this.isOn()) return;
     [0, 2, 4, 5, 7].forEach((deg, i) => {
-      this._tone(this._t(0.02 + i * 0.075), PENTA[deg + 3], { vel: 0.05, decay: 0.9, bright: 0.7, pan: -0.3 + i * 0.15, tick: 0.2 });
+      this._tone(this._t(0.02 + i * 0.075), PENTA[deg + 3], { vel: 0.028, decay: 0.9, bright: 0.7, pan: -0.3 + i * 0.15, tick: 0.2 });
     });
   }
 
