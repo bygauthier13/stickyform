@@ -15,13 +15,19 @@ const GENERIC = new Set(['the', 'and', 'presents', 'present', 'vol', 'sample', '
 /** Structural words: they describe the file's role, not its sound. */
 const STOP = new Set(['loop', 'loops', 'one', 'shot', 'shots', 'oneshot', 'oneshots', 'hit', 'hits', 'song', 'starter']);
 
-const words = (s) => s.split(/[^A-Za-z0-9#]+/).filter(Boolean);
+// "DrumFill1" → Drum Fill 1; "F#min" stays whole.
+const words = (s) => s
+  .replace(/([a-z])([A-Z])/g, '$1 $2')
+  .replace(/([A-Za-z])(\d)/g, '$1 $2')
+  .replace(/(\d)([A-Za-z])/g, '$1 $2')
+  .split(/[^A-Za-z0-9#]+/)
+  .filter(Boolean);
 const compact = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
 const lower = (a) => a.map((t) => t.toLowerCase());
 
 // ------------------------------------------------------------------ key
 
-const KEY_RE = /^([A-G])([#b]?)(min|minor|m|maj|major)?$/;
+const KEY_RE = /^([A-G])([#b]?)(min|Min|MIN|minor|Minor|m|maj|Maj|MAJ|major|Major)?$/;
 
 /**
  * "Fmin", "F#min", "Em", "Bbmaj" → { name, root, pc, mode }.
@@ -29,12 +35,16 @@ const KEY_RE = /^([A-G])([#b]?)(min|minor|m|maj|major)?$/;
  * on their own are far more often part of a sentence than a key.
  */
 export function parseKeyToken(tok, bare = false) {
-  const m = KEY_RE.exec(tok);
+  let m = KEY_RE.exec(tok);
+  if (!m && bare) {
+    const o = /^([A-G])([#b]?)-?\d$/.exec(tok); // a note name with its octave: "C#3"
+    if (o) m = [tok, o[1], o[2], undefined];
+  }
   if (!m) return null;
   const [, letter, acc, modeStr] = m;
   if (!modeStr && !bare) return null;
   const pc = (LETTER_PC[letter] + (acc === '#' ? 1 : acc === 'b' ? -1 : 0) + 12) % 12;
-  const mode = !modeStr ? null : modeStr.startsWith('maj') ? 'major' : 'minor';
+  const mode = !modeStr ? null : /^maj/i.test(modeStr) ? 'major' : 'minor';
   const root = SHARPS[pc];
   return { name: root + (mode === 'minor' ? 'm' : mode === 'major' ? 'maj' : ''), root, pc, mode };
 }
@@ -83,14 +93,15 @@ const LEX = [
   [/^(pad|pads|string|strings)$/, 'harmony', 'pad'],
   [/^(vocal|vocals|vox|voice|voices|chant|chants|adlib|adlibs|acapella|choir|chop|chops|hook|hooks|gang|phrase|phrases)$/, 'vocal', 'vocal'],
   [/^(guitar|guitars|gtr|banjo|ukulele|sitar|oud)$/, 'melody', 'guitar'],
-  [/^(flute|flutes|sax|saxophone|trumpet|horn|horns|brass|violin|cello|harp|marimba|kalimba|bell|bells)$/, 'melody', 'instrument'],
+  [/^(flute|flutes|sax|saxophone|trumpet|horn|horns|brass|violin|cello|harp|marimba|kalimba|bell|bells)$/, 'melody', null],
   [/^(melody|melodic|melodies|riff|riffs)$/, 'melody', 'melody'],
   [/^(lead|leads)$/, 'melody', 'lead'],
   [/^(arp|arps)$/, 'melody', 'arp'],
   [/^(pluck|plucks)$/, 'melody', 'pluck'],
   [/^(synth|synths)$/, 'melody', 'synth'],
   [/^(stack|stacks|resampled|songstarter|songstarters)$/, 'music', 'stack'],
-  [/^(texture|textures|ambience|ambient|atmos|atmosphere|vinyl|crackle|foley|noise|drone)$/, 'texture', 'texture'],
+  [/^(music|musical|pattern|patterns|tonal)$/, 'music', 'music'],
+  [/^(texture|textures|ambience|ambient|atmos|atmosphere|vinyl|crackle|foley|noise|drone|static|hiss|hum|buzz|rumble)$/, 'texture', 'texture'],
   [/^(fx|sfx|riser|risers|build|builds|buildup|sweep|sweeps|impact|impacts|uplifter|downlifter|transition|transitions|swell|whoosh|animal)$/, 'fx', 'fx'],
 ];
 
@@ -101,17 +112,35 @@ const VARIANT = {
   impact: 'impact', impacts: 'impact', sweep: 'sweep', sweeps: 'sweep', animal: 'animal',
 };
 
-const lexOf = (token) => LEX.find(([re]) => re.test(token)) || null;
+/** [group, instrument] for a token, or null. */
+const TONAL = new Set(['bass', 'harmony', 'melody', 'vocal', 'music']);
+/** Single hits: a file named after one of these, with no tempo, is a one-shot. */
+const HIT_INSTRUMENTS = new Set(['kick', 'snare', 'clap', 'hat', 'tom', 'cymbal', '808']);
+
+const lexOf = (token) => {
+  const row = LEX.find(([re]) => re.test(token));
+  return row ? [row[1], row[2] ?? token] : null;
+};
+
+// Words stuck together ("fluteharm", "bassline"): matched by their start, only as a last resort.
+const LOOSE = [['drum', 'drums', 'drums'], ['kick', 'drums', 'kick'], ['snare', 'drums', 'snare'], ['perc', 'drums', 'perc'],
+  ['bass', 'bass', 'bass'], ['vocal', 'vocal', 'vocal'], ['synth', 'melody', 'synth'], ['flute', 'melody', 'flute'],
+  ['piano', 'harmony', 'keys'], ['guitar', 'melody', 'guitar'], ['chord', 'harmony', 'chords'], ['melod', 'melody', 'melody']];
+const looseOf = (token) => {
+  const row = token.length >= 6 && LOOSE.find(([stem]) => token.startsWith(stem));
+  return row ? [row[1], row[2]] : null;
+};
 
 // ------------------------------------------------------------------ genres
 
 // Matched against the pack's folder names only, never the file name.
 const GENRES = [
   [/afrohouse/, 'afro_house'], [/afrobeat/, 'afrobeat'], [/afro/, 'afro'], [/jersey/, 'jersey_club'],
-  [/trap/, 'trap'], [/drill/, 'drill'], [/dancehall/, 'dancehall'],
-  [/drumbass|drumandbass|dnb|liquidfunk|jungle/, 'drum_and_bass'], [/lofi/, 'lofi'], [/techno/, 'techno'],
-  [/house/, 'house'], [/dub|reggae/, 'dub_reggae'], [/kpop/, 'k_pop'], [/pop/, 'pop'], [/jazz/, 'jazz'],
-  [/soul/, 'soul'], [/funk/, 'funk'], [/middleeast/, 'middle_eastern'],
+  [/trap/, 'trap'], [/drill/, 'drill'], [/dancehall/, 'dancehall'], [/moombahton/, 'moombahton'], [/worldbass/, 'world_bass'],
+  [/drumbass|drumandbass|dnb|liquidfunk|jungle/, 'drum_and_bass'], [/lofi/, 'lofi'], [/futurebeats/, 'future_beats'],
+  [/synthwave/, 'synthwave'], [/techno/, 'techno'], [/house/, 'house'], [/dubstep/, 'dubstep'], [/dub(?!step)|reggae/, 'dub_reggae'],
+  [/kpop/, 'k_pop'], [/pop/, 'pop'], [/hiphop/, 'hip_hop'], [/jazz/, 'jazz'], [/soul/, 'soul'], [/funk/, 'funk'],
+  [/middleeast/, 'middle_eastern'], [/amapiano/, 'amapiano'], [/reggaeton/, 'reggaeton'],
 ];
 
 export function genresOf(packName, innerName = '') {
@@ -144,32 +173,43 @@ export function parsePath(rel) {
   const lt = lower(tokens);
   const flags = [];
 
-  // ---- tempo and key
-  const bpm = parseBpm(tokens);
+  // ---- tempo and key written in the file name
+  let bpm = parseBpm(tokens);
+  let bpmSource = bpm ? 'name' : null;
   let key = null;
+  let keySource = null;
   let keyIdx = -1;
   for (let i = tokens.length - 1; i >= 0 && !key; i--) {
     key = parseKeyToken(tokens[i]);
-    if (key) keyIdx = i;
+    if (key) [keyIdx, keySource] = [i, 'name'];
+  }
+
+  // ---- kit: some packs put tempo and key in a folder name ("…_150_FB_PowerfullTrack__Bmin")
+  let kit = null;
+  let kitBpm = null;
+  let kitKey = null;
+  for (let i = segs.length - 1; i >= 0 && !kit; i--) {
+    const w = words(segs[i]);
+    const b = parseBpm(w);
+    const k = [...w].reverse().map((t) => parseKeyToken(t)).find(Boolean) || null;
+    if (b || k) [kit, kitBpm, kitKey] = [segs.slice(0, i + 1).join('/'), b, k];
   }
 
   // ---- instrument: the file name first, then the nearest category folder
   const noKick = lt.some((t, i) => t === 'no' && lt[i + 1] === 'kick');
   const skip = new Set(noKick ? [lt.indexOf('kick')] : []);
   const dirTokens = lower(words(segs.join(' '))).reverse(); // nearest folder first
-  const nameLex = lt.map((t, i) => (skip.has(i) ? null : lexOf(t)));
-  let group = 'other';
-  let instrument = null;
+  const exact = lt.map((t, i) => (skip.has(i) ? null : lexOf(t)));
+  const nameHit = exact.find(Boolean) || null;
   const fxWord = lt.find((t) => FX_RE.test(t));
-  if (fxWord) {
-    group = 'fx';
-    instrument = 'fx';
-  } else {
-    const hit = nameLex.find(Boolean) || dirTokens.map(lexOf).find(Boolean);
-    if (hit) [, group, instrument] = hit;
-  }
+  let hit = nameHit;
+  // "Drum FX Build" is an effect, but "horn swell" is still a horn.
+  if (fxWord && (!nameHit || nameHit[0] === 'drums')) hit = ['fx', 'fx'];
+  if (!hit) hit = lt.map((t, i) => (skip.has(i) ? null : looseOf(t))).find(Boolean) || null;
+  if (!hit) hit = dirTokens.map(lexOf).find(Boolean) || dirTokens.map(looseOf).find(Boolean) || null;
+  let [group, instrument] = hit || ['other', null];
   if (group === 'melody' && lt.some((t) => /^(chord|chords)$/.test(t))) group = 'harmony';
-  const instruments = [...new Set([...nameLex.filter(Boolean).map((l) => l[2]), ...(fxWord ? ['fx'] : [])])];
+  const instruments = [...new Set([...exact.filter(Boolean).map((l) => l[1]), ...(fxWord ? ['fx'] : [])])];
 
   let variant = noKick ? 'no_kick' : null;
   if (!variant && lt.some((t, i) => t === 'song' && lt[i + 1] === 'starter')) variant = 'songstarter';
@@ -183,7 +223,7 @@ export function parsePath(rel) {
   const cd = compact(dir);
   const nameLoop = /loop|stack|songstarter/.test(cs) || lt.some((t, i) => t === 'song' && lt[i + 1] === 'starter');
   const nameOne = /oneshot|singlehit/.test(cs) || lt.includes('hit') || lt.includes('hits');
-  const folderOne = /oneshot|singlehit|hits/.test(cd);
+  const folderOne = /oneshot|single|hits/.test(cd);
   const folderLoop = /loop/.test(cd);
   let kind = 'unknown';
   let kindSource = 'none';
@@ -191,13 +231,23 @@ export function parsePath(rel) {
   else if (bpm) [kind, kindSource] = ['loop', 'bpm'];
   else if (nameOne || folderOne) [kind, kindSource] = ['oneshot', nameOne ? 'name' : 'folder'];
   else if (folderLoop) [kind, kindSource] = ['loop', 'folder'];
+  else if (HIT_INSTRUMENTS.has(instrument)) [kind, kindSource] = ['oneshot', 'instrument'];
   if (kind === 'loop' && (nameOne || folderOne) && kindSource !== 'folder') flags.push('kind-conflict');
 
-  // A tuned one-shot may carry a bare note name: "OS_AS_C_808_Pound".
+  // Whatever the name left out, the kit folder may say.
+  if (kind !== 'oneshot' && kit) {
+    if (!bpm && kitBpm) {
+      [bpm, bpmSource] = [kitBpm, 'kit'];
+      if (kind === 'unknown') [kind, kindSource] = ['loop', 'kit'];
+    }
+    if (!key && kitKey && TONAL.has(group)) [key, keySource] = [kitKey, 'kit'];
+  }
+
+  // A tuned one-shot may carry a bare note name: "OS_AS_C_808_Pound", "Vocal_Shout_31_G#".
   if (!key && kind === 'oneshot' && ['bass', 'harmony', 'melody', 'vocal'].includes(group)) {
     for (let i = 0; i < tokens.length && !key; i++) {
       key = parseKeyToken(tokens[i], true);
-      if (key) keyIdx = i;
+      if (key) [keyIdx, keySource] = [i, 'name'];
     }
   }
 
@@ -216,15 +266,16 @@ export function parsePath(rel) {
   // ---- flags the audio pass should look at
   if (kind === 'unknown') flags.push('kind-unknown');
   if (kind === 'loop' && !bpm) flags.push('no-bpm');
-  if (kind === 'loop' && !key && ['bass', 'harmony', 'melody', 'vocal', 'music'].includes(group)) flags.push('no-key');
+  if (kind === 'loop' && !key && TONAL.has(group)) flags.push('no-key');
   if (group === 'other') flags.push('group-unknown');
 
   return {
-    id: createHash('sha1').update(`${pack}/${segs.join('/')}/${file}`).digest('hex').slice(0, 10),
+    id: createHash('sha1').update(rel.replace(/\\/g, '/')).digest('hex').slice(0, 10),
     pack, dir, file, ext,
     kind, kindSource,
-    bpm,
-    key,
+    bpm, bpmSource,
+    key, keySource,
+    kit,
     camelot: camelot(key),
     group, instrument, instruments, variant,
     wet,

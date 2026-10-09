@@ -14,8 +14,13 @@ npm run samples:index -- liste.txt --root SAMPLES --out data/samples-index
 `--root` is the folder whose children are the packs: `SAMPLES` for a folder of packs, or
 `sounds/packs` for a Splice folder (the first match in each path wins).
 
+Per-pack corrections (optional): copy `<out>-packs.json` to `data/pack-overrides.json` and edit it. For each pack
+you can fix `genres`, set `defaultGroup` / `defaultKind` for files the names cannot settle, or `"skip": true`
+to leave the pack out. Pack names are only a hint ("a food house moment" is not house).
+
 Output: `<out>.json` (full records) and `<out>.csv` (one row per sample: pack, genres, loop or
-one-shot, group, instrument, BPM, key, Camelot code, wet/dry, tags, flags).
+one-shot, group, instrument, BPM, key, Camelot code, wet/dry, tags, flags). Some packs write tempo and key in a
+folder name ("kits") instead of the file name; the folder is recorded as `kit` and fills in what the name omits.
 
 What is read from the name: loop or one-shot, BPM (60–200), key (`Fmin`, `F#m`, `Bbmaj`, a bare
 note on tuned one-shots), instrument group (drums, bass, harmony, melody, vocal, music, texture,
