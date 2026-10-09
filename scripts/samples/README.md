@@ -11,6 +11,9 @@ find ~/Desktop/SAMPLES -type f \( -iname "*.wav" -o -iname "*.aif*" -o -iname "*
 npm run samples:index -- liste.txt --root SAMPLES --out data/samples-index
 ```
 
+`--root` is the folder whose children are the packs: `SAMPLES` for a folder of packs, or
+`sounds/packs` for a Splice folder (the first match in each path wins).
+
 Output: `<out>.json` (full records) and `<out>.csv` (one row per sample: pack, genres, loop or
 one-shot, group, instrument, BPM, key, Camelot code, wet/dry, tags, flags).
 

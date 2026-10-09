@@ -2,6 +2,8 @@
 //
 //   node scripts/samples/build-index.mjs liste.txt [--root SAMPLES] [--out data/samples-index]
 //
+// --root is the folder whose children are the packs ("SAMPLES", or "sounds/packs" for a Splice folder).
+//
 // Writes <out>.json and <out>.csv and prints a report of what was understood and
 // what still needs the audio-analysis pass. Reads names only; no audio is opened.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -24,11 +26,15 @@ const out = flag('--out', 'data/samples-index');
 const AUDIO = /\.(wav|aif|aiff|mp3|flac|ogg)$/i;
 const lines = [...new Set(readFileSync(input, 'utf8').split(/\r?\n/).map((l) => l.trim()).filter(Boolean))];
 
-/** Drop everything up to and including the library root folder. */
+/**
+ * Drop everything up to and including the folder whose children are the packs.
+ * `--root` may be several levels ("sounds/packs"); the first match wins.
+ */
 function relative(line) {
   const norm = line.replace(/\\/g, '/');
-  const i = norm.toLowerCase().lastIndexOf(`/${root.toLowerCase()}/`);
-  return i >= 0 ? norm.slice(i + root.length + 2) : norm;
+  const marker = `/${root.replace(/^\/+|\/+$/g, '').toLowerCase()}/`;
+  const i = norm.toLowerCase().indexOf(marker);
+  return i >= 0 ? norm.slice(i + marker.length) : norm;
 }
 
 const records = lines.filter((l) => AUDIO.test(l)).map((l) => ({ ...parsePath(relative(l)), path: relative(l) }));
