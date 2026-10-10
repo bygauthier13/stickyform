@@ -4,8 +4,9 @@ import { h, ICONS } from './dom.js';
 
 export function renderCards(q, { value, onChange, sound }) {
   const mood = q.type === 'mood';
+  const emoji = q.type === 'emoji';
   const group = h('div', {
-    class: mood ? 'cards cards-mood' : 'cards cards-swatch',
+    class: emoji ? 'cards cards-emoji' : mood ? 'cards cards-mood' : 'cards cards-swatch',
     role: 'radiogroup',
     'aria-labelledby': 'qtitle',
   });
@@ -19,12 +20,14 @@ export function renderCards(q, { value, onChange, sound }) {
 
   q.options.forEach((o, i) => {
     const input = h('input', { type: 'radio', name: q.id, value: o.id, class: 'sr-only' });
-    const art = mood
+    const art = emoji
+      ? h('span', { class: 'emoji-art', 'aria-hidden': 'true' }, h('span', { class: 'emoji' }, o.emoji), h('span', { class: 'mood-check' }, ICONS.check()))
+      : mood
       ? h('span', { class: `mood-art mood-${o.id}`, 'aria-hidden': 'true' }, h('span', { class: 'mood-check' }, ICONS.check()))
       : h('span', { class: 'swatch-chip', 'aria-hidden': 'true' }, h('span', { class: 'swatch-check' }, ICONS.check()));
     const row = h(
       'label',
-      { class: mood ? 'card card-mood' : 'card card-swatch', style: `--i:${i};${o.color ? `--c:${o.color};--a:${o.accent}` : ''}` },
+      { class: emoji ? 'card card-emoji' : mood ? 'card card-mood' : 'card card-swatch', style: `--i:${i};${o.color ? `--c:${o.color};--a:${o.accent}` : ''}` },
       input,
       art,
       h('span', { class: 'card-name' }, o.label),

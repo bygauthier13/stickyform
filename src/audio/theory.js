@@ -169,16 +169,50 @@ export const MOTIFS = [
   { name: 'Breath', notes: [[0, 7, 8], [8, 6, 4], [12, 4, 4], [16, 5, 6], [22, 4, 2], [24, 2, 8]] },
 ];
 
-// Each motif's centre of gravity (duration-weighted mean degree), used to place
-// the whole hook in one register regardless of which chord it is played over.
-for (const m of MOTIFS) {
+/** A motif's centre of gravity (duration-weighted mean degree): lets the whole hook sit in one register. */
+function motifCenter(notes) {
   let sum = 0;
   let weight = 0;
-  for (const [, degree, len] of m.notes) {
+  for (const [, degree, len] of notes) {
     sum += degree * len;
     weight += len;
   }
-  m.center = Math.round(sum / weight);
+  return Math.round(sum / weight);
+}
+for (const m of MOTIFS) m.center = motifCenter(m.notes);
+
+// ----------------------------------------------------------- a hook from a name
+
+// One scale degree per letter (0 root · 1 ninth · 2 third · 3 fourth · 4 fifth · 5 sixth · 6 seventh · 7 octave · 9 tenth).
+// The vowels each get their own chord tone, so every name has a different colour.
+const LETTER_DEGREE = {
+  a: 4, b: 1, c: 3, d: 5, e: 2, f: 6, g: 1, h: 3, i: 7, j: 5, k: 6, l: 1, m: 3,
+  n: 5, o: 0, p: 6, q: 3, r: 1, s: 5, t: 6, u: 9, v: 3, w: 5, x: 1, y: 6, z: 3,
+};
+const NAME_CHORD_TONES = [0, 2, 4, 7, 9]; // root · third · fifth · octave · tenth
+// long–short–short–long, twice: the shape of a call and its answer
+const NAME_SLOTS = [[0, 3], [4, 2], [6, 2], [8, 6], [16, 3], [20, 2], [22, 2], [24, 6]];
+const NAME_RESTS = new Set([3, 7]); // where each phrase comes to rest: a chord tone
+
+/**
+ * A two-bar hook spelled with the letters of a name: every letter always means the
+ * same scale degree, so "Maya" sounds like Maya and "Mia" doesn't. Short names repeat;
+ * each note takes the octave nearest the one before it, so the line moves by steps;
+ * each phrase ends on a chord tone. Returns null if the name has fewer than two letters.
+ */
+export function nameMotif(name) {
+  const letters = [...String(name).toLowerCase().normalize('NFD')].filter((c) => c >= 'a' && c <= 'z');
+  if (letters.length < 2) return null;
+  let prev = 4;
+  const nearest = (cands, to) => cands.reduce((best, c) => (Math.abs(c - to) < Math.abs(best - to) ? c : best));
+  const notes = NAME_SLOTS.map(([step, len], i) => {
+    const degree = LETTER_DEGREE[letters[i % letters.length]];
+    let d = nearest([degree, degree + 7].filter((c) => c <= 9), prev);
+    if (NAME_RESTS.has(i) && !NAME_CHORD_TONES.includes(d)) d = nearest(NAME_CHORD_TONES, d);
+    prev = d;
+    return [step, d, len];
+  });
+  return { name: `Name: ${String(name).trim()}`, notes, center: motifCenter(notes) };
 }
 
 /**

@@ -8,7 +8,7 @@
 
 import { PROGRESSIONS, hashString } from './audio/theory.js';
 
-const BASE = {
+export const BASE = {
   energy: 0.5,
   bright: 0.5,
   space: 0.5,
@@ -102,12 +102,12 @@ const MAP = {
   },
 };
 
-const GROOVE_TEMPO = { house: 6, pop: 0, hiphop: -14, electro: 2, ambient: -10, broken: -2 };
+export const GROOVE_TEMPO = { house: 6, pop: 0, hiphop: -14, electro: 2, ambient: -10, broken: -2 };
 const GROOVE_SWING = { house: 0.05, pop: 0.02, hiphop: 0.1, electro: 0, ambient: 0.05, broken: 0.07 };
 const GROOVE_DUCK = { house: 0.2, pop: 0, hiphop: -0.25, electro: 0.1, ambient: -0.35, broken: -0.05 };
 const GROOVE_ENERGY = { house: 0.05, pop: 0, hiphop: -0.02, electro: 0.04, ambient: -0.1, broken: 0.02 };
 
-const MOTIF_POOL = {
+export const MOTIF_POOL = {
   cinematic: [5, 1, 2],
   euphoric: [3, 0, 4],
   dreamy: [5, 2, 0],
@@ -116,10 +116,10 @@ const MOTIF_POOL = {
   none: [0, 1, 2, 3, 4, 5],
 };
 
-const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-const slider01 = (v, fallback = 0.5) => (typeof v === 'number' ? clamp(v / 100, 0, 1) : fallback);
+export const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+export const slider01 = (v, fallback = 0.5) => (typeof v === 'number' ? clamp(v / 100, 0, 1) : fallback);
 
-function pickWinner(votes, fallback) {
+export function pickWinner(votes, fallback) {
   let best = fallback;
   let bestW = 0;
   for (const [k, w] of Object.entries(votes)) {
@@ -132,79 +132,104 @@ function pickWinner(votes, fallback) {
 }
 
 /**
- * @param {Record<string, any>} answers  question id → option id | number | string | string[]
- * @returns {object} musical profile consumed by the audio engine
+ * Build a profile builder for one questionnaire.
+ *
+ * @param {object} cfg
+ * @param {Record<string, Record<string, object>>} cfg.map   question id → option id → contribution
+ * @param {object} [cfg.base]     starting values that replace BASE entries
+ * @param {object} [cfg.votes]    starting votes, e.g. { prog: { euphoria: 0.6 } }
+ * @param {(num:object, answers:object)=>void} [cfg.sliders]  continuous answers nudge the numbers
+ * @param {(answers:object)=>string} cfg.words           the user's own words, hashed into the melody
+ * @param {(answers:object)=>number[]} cfg.motifPool     motifs that suit the chosen feel
+ * @param {(answers:object)=>object|null} [cfg.customMotif]  a hook written from the answers (e.g. a name)
+ * @returns {(answers?:Record<string, any>) => object} musical profile consumed by the audio engine
  */
-export function buildProfile(answers = {}) {
-  const num = { ...BASE };
-  const votes = { groove: {}, prog: {}, pad: {}, lead: { glass: 0.3 }, texture: {} };
+export function makeProfileBuilder(cfg) {
+  return function buildProfile(answers = {}) {
+    const num = { ...BASE, ...cfg.base };
+    const votes = {
+      groove: { ...cfg.votes?.groove },
+      prog: { ...cfg.votes?.prog },
+      pad: { ...cfg.votes?.pad },
+      lead: { glass: 0.3, ...cfg.votes?.lead },
+      texture: { ...cfg.votes?.texture },
+    };
 
-  const apply = (fx) => {
-    if (!fx) return;
-    for (const [key, val] of Object.entries(fx)) {
-      if (Array.isArray(val)) votes[key][val[0]] = (votes[key][val[0]] || 0) + val[1];
-      else num[key] += val;
+    const apply = (fx) => {
+      if (!fx) return;
+      for (const [key, val] of Object.entries(fx)) {
+        if (Array.isArray(val)) votes[key][val[0]] = (votes[key][val[0]] || 0) + val[1];
+        else num[key] += val;
+      }
+    };
+
+    for (const [qid, table] of Object.entries(cfg.map)) {
+      const a = answers[qid];
+      if (Array.isArray(a)) a.forEach((id) => apply(table[id]));
+      else apply(table[a]);
     }
-  };
+    cfg.sliders?.(num, answers);
 
-  for (const [qid, table] of Object.entries(MAP)) {
-    const a = answers[qid];
-    if (Array.isArray(a)) a.forEach((id) => apply(table[id]));
-    else apply(table[a]);
-  }
+    const groove = pickWinner(votes.groove, 'electro');
+    const prog = pickWinner(votes.prog, 'reverie');
+    const mode = PROGRESSIONS[prog].mode;
+    const pad = pickWinner(votes.pad, 'warm');
+    const lead = pickWinner(votes.lead, 'glass');
+    const texture = pickWinner(votes.texture, 'air');
 
-  // Sliders: continuous
-  const pace = slider01(answers.q4);
-  const energySlider = slider01(answers.q10);
-  const spont = slider01(answers.q13);
-  num.tempo += (pace - 0.5) * 26;
-  num.energy += (pace - 0.5) * 0.26;
-  num.energy += (energySlider - 0.5) * 0.7;
-  num.tempo += (energySlider - 0.5) * 10;
-  num.drive += (energySlider - 0.5) * 0.4;
-  num.variation += (spont - 0.5) * 0.6;
-  num.swing += (spont - 0.5) * 0.04;
-  num.density += (spont - 0.5) * 0.2;
+    const tempo = Math.round(clamp(num.tempo + GROOVE_TEMPO[groove], 90, 126));
+    const energy = clamp(num.energy + GROOVE_ENERGY[groove], 0, 1);
 
-  const groove = pickWinner(votes.groove, 'electro');
-  const prog = pickWinner(votes.prog, 'reverie');
-  const mode = PROGRESSIONS[prog].mode;
-  const pad = pickWinner(votes.pad, 'warm');
-  const lead = pickWinner(votes.lead, 'glass');
-  const texture = pickWinner(votes.texture, 'air');
+    // The user's own words write the melody: hash them to choose among motifs
+    // that suit the chosen feel.
+    const words = (cfg.words(answers) || '').toLowerCase().trim();
+    const wordsHash = hashString(words || 'stickysound');
+    const pool = cfg.motifPool(answers);
+    const motif = pool[wordsHash % pool.length];
+    const seed = hashString(`${wordsHash}|${JSON.stringify(answers)}`) || 1;
 
-  const tempo = Math.round(clamp(num.tempo + GROOVE_TEMPO[groove], 90, 126));
-  const energy = clamp(num.energy + GROOVE_ENERGY[groove], 0, 1);
-
-  // The user's own words write the melody: hash them to choose among motifs
-  // that suit the chosen feel.
-  const words = [answers.q9, answers.q15].filter((s) => typeof s === 'string' && s.trim()).join('|').toLowerCase().trim();
-  const wordsHash = hashString(words || 'stickysound');
-  const pool = MOTIF_POOL[answers.q16] || MOTIF_POOL.none;
-  const motif = pool[wordsHash % pool.length];
-  const seed = hashString(`${wordsHash}|${JSON.stringify(answers)}`) || 1;
-
-  return {
-    tempo,
-    swing: clamp(num.swing + GROOVE_SWING[groove], 0, 0.2),
-    energy,
-    bright: clamp(num.bright, 0.05, 0.95),
-    space: clamp(num.space, 0, 1),
-    drive: clamp(num.drive, 0, 1),
-    density: clamp(num.density - (groove === 'ambient' ? 0.15 : 0), 0.1, 1),
-    variation: clamp(num.variation, 0, 1),
-    sparkle: clamp(num.sparkle, 0, 1),
-    duck: clamp(num.duck + GROOVE_DUCK[groove], 0, 0.9),
-    groove,
-    prog,
-    mode,
-    pad,
-    lead,
-    texture,
-    motif,
-    seed,
+    return {
+      tempo,
+      swing: clamp(num.swing + GROOVE_SWING[groove], 0, 0.2),
+      energy,
+      bright: clamp(num.bright, 0.05, 0.95),
+      space: clamp(num.space, 0, 1),
+      drive: clamp(num.drive, 0, 1),
+      density: clamp(num.density - (groove === 'ambient' ? 0.15 : 0), 0.1, 1),
+      variation: clamp(num.variation, 0, 1),
+      sparkle: clamp(num.sparkle, 0, 1),
+      duck: clamp(num.duck + GROOVE_DUCK[groove], 0, 0.9),
+      groove,
+      prog,
+      mode,
+      pad,
+      lead,
+      texture,
+      motif,
+      customMotif: cfg.customMotif?.(answers) ?? null,
+      seed,
+    };
   };
 }
+
+export const buildProfile = makeProfileBuilder({
+  map: MAP,
+  sliders(num, answers) {
+    const pace = slider01(answers.q4);
+    const energySlider = slider01(answers.q10);
+    const spont = slider01(answers.q13);
+    num.tempo += (pace - 0.5) * 26;
+    num.energy += (pace - 0.5) * 0.26;
+    num.energy += (energySlider - 0.5) * 0.7;
+    num.tempo += (energySlider - 0.5) * 10;
+    num.drive += (energySlider - 0.5) * 0.4;
+    num.variation += (spont - 0.5) * 0.6;
+    num.swing += (spont - 0.5) * 0.04;
+    num.density += (spont - 0.5) * 0.2;
+  },
+  words: (answers) => [answers.q9, answers.q15].filter((s) => typeof s === 'string' && s.trim()).join('|'),
+  motifPool: (answers) => MOTIF_POOL[answers.q16] || MOTIF_POOL.none,
+});
 
 export const DEFAULT_PROFILE = buildProfile({});
 

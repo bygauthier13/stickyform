@@ -409,7 +409,7 @@ function melodyLayer(ctx, mixer, live) {
     const { ctx: c, profile, chord, cycleBar, st, stepDur, at, rnd, barDur } = env;
     const kind = profile.lead;
     const target = LEAD_TARGET[kind] ?? 69;
-    const motif = MOTIFS[profile.motif % MOTIFS.length];
+    const motif = profile.customMotif || MOTIFS[profile.motif % MOTIFS.length]; // a hook spelled from a name, if there is one
     const half = cycleBar % 2; // bars alternate between the motif's two halves
     const base = half * 16;
     const energyGain = 0.9 + 0.25 * profile.energy;
@@ -421,6 +421,8 @@ function melodyLayer(ctx, mixer, live) {
 
     const play = (step, degree, len, accent = 1) => {
       const midi = settleNote(chord, melodyPitch(chord, degree, { target: aim, center: motif.center }));
+      // let anything played alongside (typed notes) know what is sounding
+      env.entry?.sounding.push({ t: at(step), dur: len * stepDur + 0.3, midi });
       S.lead(c, bus.input, at(step) + (rnd() - 0.5) * 0.006, len * stepDur * (kind === 'pluck' ? 0.9 : 1), midiToHz(midi), {
         kind,
         vel: 0.15 * accent * energyGain * (0.88 + rnd() * 0.24),

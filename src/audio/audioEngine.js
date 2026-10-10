@@ -22,6 +22,7 @@ import { createMixer } from './fx.js';
 import { LAYER_ENTER, LAYER_NAMES } from './musicLayers.js';
 import { renderTrack } from './render.js';
 import { SoundEffects } from './soundEffects.js';
+import { TypingInstrument } from './typing.js';
 import { SilentPlayer, TrackPlayer } from './trackPlayer.js';
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -139,6 +140,10 @@ export class AudioEngine {
     const bank = await getDrumBank(ctx.sampleRate);
     this.composer = new Composer(ctx, mixer, { live: true, bank });
     this.sfx = new SoundEffects(ctx, mixer, () => this.audible);
+    this.typing = new TypingInstrument(ctx, mixer, {
+      getTimeline: () => this.composer.timeline,
+      isOn: () => this.audible && this.started && !this.finished,
+    });
     this._buf = new Float32Array(512);
 
     ctx.addEventListener('statechange', () => this._emit('state', ctx.state));
@@ -371,6 +376,19 @@ export class AudioEngine {
   cue(name, ...args) {
     if (!this.sfx || typeof this.sfx[name] !== 'function') return;
     this.sfx[name](...args);
+  }
+
+  /**
+   * A key was typed. While the music is playing the keystroke becomes a note in
+   * time and in key with it; otherwise it falls back to the quiet interface tick.
+   * Returns the note played (for tests and debugging), or null.
+   */
+  typed(char) {
+    const last = typeof char === 'string' ? [...char].pop() : '';
+    if (!last || !last.trim()) return null;
+    if (this.typing?.live) return this.typing.play(last, this.profile); // fast typing may skip a key: that is fine
+    this.cue('type', last); // music not running yet: the quiet interface tick
+    return null;
   }
 
   // ----------------------------------------------------------------- visuals

@@ -2,14 +2,15 @@
   "name": "stickysound",
   "version": "0.1.0",
   "private": true,
-  "description": "StickySound — a form that composes a soundtrack while you answer it.",
+  "description": "StickySound \u2014 a form that composes a soundtrack while you answer it.",
   "type": "module",
   "scripts": {
     "start": "node scripts/serve.mjs",
     "dev": "node scripts/serve.mjs",
-    "test": "node tests/theory.test.mjs && node tests/samples.test.mjs",
+    "test": "node tests/theory.test.mjs && node tests/samples.test.mjs && node tests/typing.test.mjs && node tests/mp3.test.mjs && node tests/school.test.mjs",
     "test:e2e": "node tests/e2e.cjs",
-    "samples:index": "node scripts/samples/build-index.mjs"
+    "samples:index": "node scripts/samples/build-index.mjs",
+    "test:e2e:school": "node tests/e2e-school.cjs"
   },
   "engines": {
     "node": ">=18"

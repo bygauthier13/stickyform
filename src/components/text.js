@@ -6,7 +6,7 @@ export function renderText(q, { value, onChange, sound }) {
   const long = q.type === 'textarea';
   const input = long
     ? h('textarea', { class: 'field-input field-area', rows: 2 })
-    : h('input', { class: 'field-input', type: 'text', autocomplete: 'off', autocapitalize: 'sentences', spellcheck: 'false' });
+    : h('input', { class: 'field-input', type: 'text', autocomplete: 'off', autocapitalize: q.autocapitalize || 'sentences', spellcheck: 'false' });
   input.setAttribute('aria-labelledby', 'qtitle');
   input.setAttribute('placeholder', q.placeholder || '');
   if (q.maxLength) input.setAttribute('maxlength', q.maxLength);

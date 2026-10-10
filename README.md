@@ -79,7 +79,33 @@ Tempo glides toward its target at ≤ 1.5 BPM per bar, so an answer never jolts 
 
 ### UI sound design
 
-Interface sounds are tiny, tonal and drawn from the same pentatonic set as the music, so tapping answers feels like playing the piece rather than triggering effects: each option has its own pitch, sliders ripple through the scale (rate-limited), typing is a barely-there tick, "next" is a soft air swish, the final answer is a gentle rising figure.
+Interface sounds are tiny, tonal and drawn from the same pentatonic set as the music, so tapping answers feels like playing the piece rather than triggering effects: each option has its own pitch, sliders ripple through the scale (rate-limited), typing plays notes (see below), "next" is a soft air swish, the final answer is a gentle rising figure.
+
+### Typing is playing
+
+While the music runs, every key you type becomes a note that belongs to it (`src/audio/typing.js`):
+
+* **In time** — it lands on the next sixteenth-note slot of the live bar grid, swing included.
+* **In key, in tune with the chord** — chord tones on the beat; between beats, scale tones that don't grate against the chord.
+* **In company** — never a semitone or tritone against the melody sounding at that instant; it moves like a melody (mostly steps, no run of one pitch).
+* **Repeatable** — the same text plays the same tune. A space or Backspace is a rest.
+
+Levels were set by measurement (notes rendered alone against the mix at each stage): ≈ 6.5 dB under the music early on, ≈ 8 dB under it at the end. `npm test` simulates thousands of keystrokes over every progression, tempo and swing and checks all of this.
+
+---
+
+## School edition (`school.html`)
+
+The same engine, with a parent survey where every second question is for the child. Open `school.html` (optionally `?school=Oakfield%20Prep` to set the school's name).
+
+* **16 questions, strictly parent → child → parent …** The parent's are the school's real survey (satisfaction, a 0–10 recommend scale with no default, communication, priorities, safety, value, two open questions). The child's are playful (animal, colour, superpower, speed, where the song lives, feeling, which sound makes them smile, their name).
+* **The child's answers write the song; a critical survey answer never changes it** (`tests/school.test.mjs` proves the same child gets the same song whatever the parent scored). Defaults lean major, bright and a little sparkly.
+* **The child's name writes the melody:** each letter is a scale degree, so "Maya" sounds like Maya (`nameMotif` in `theory.js`); it changes as they type.
+* **Typing makes music** in the open parent questions and the name field.
+* **Download is an MP3** with ID3 tags (title "Maya's Song", artist = the school). It is prepared in the background while the family listens, so the click usually just saves it.
+* **Privacy by design:** the reveal shows what the school would receive — the parent's eight answers only; the child's answers and name are used on the device to make the song. This build is a **demo: nothing is sent or stored**.
+
+How it is wired: `src/app.js` is the whole application, driven by a *scenario* (`src/scenarios/stickysound.js`, `src/scenarios/school.js`): questions, how answers become music, wording of the reveal. A new survey is a new scenario file plus a page.
 
 ---
 
@@ -87,19 +113,23 @@ Interface sounds are tiny, tonal and drawn from the same pentatonic set as the m
 
 Pressing **Download** saves a 16-bit / 44.1 kHz stereo **WAV** (`src/audio/wav.js`) of the exact arrangement shown on screen — about two minutes: the eight layers entering in order, a breakdown, a drop, and a closing cadence that fades into the reverb tail. It is *not* a recording: the same `Composer` that plays live is run through an `OfflineAudioContext`, then mastered to ≈ −14 dBFS RMS with a soft-knee ceiling.
 
-The file carries RIFF metadata (title, tempo and key).
+The file carries RIFF metadata (title, tempo and key). Scenarios can ask for **MP3** instead (`src/audio/mp3.js`: 128 kbps with ID3v2.3 tags, encoded in the browser in short slices so the page stays smooth). The encoder is [lamejs](https://github.com/zhuker/lamejs) (LGPL-3.0, a JavaScript port of LAME), shipped unmodified as its own file in `assets/vendor/lamejs/` and loaded only when a track exists; if it ever fails, the WAV is offered instead.
 
 ---
 
 ## Code map
 
 ```
-index.html
-assets/                 bundled fonts (Instrument Serif, Inter — SIL OFL) + favicon
+index.html              StickySound
+school.html             StickySound for schools (parent survey + a song for the child)
+assets/                 bundled fonts (Instrument Serif, Inter — SIL OFL), favicon, vendor/lamejs (MP3, LGPL)
 scripts/serve.mjs       zero-dependency static dev server
+scripts/samples/        sample-library tools (see docs/sample-library.md)
 src/
-  main.js               wiring: screens, form, audio, reveal (only file that joins them)
-  soundmap.js           answers → musical profile (+ results summary)
+  app.js                the application: screens, form, audio, reveal — driven by a scenario
+  main.js / school.js   entry points (pick a scenario)
+  scenarios/            stickysound.js · school.js (questions, sound map, wording)
+  soundmap.js           answers → musical profile (a configurable builder)
   audio/                ← independent of the form and the DOM; reusable as an SDK
     audioEngine.js      live engine: scheduler, progress → layers, mute, finale, player
     composer.js         per-bar composition (shared by live + offline render)
@@ -110,12 +140,14 @@ src/
     theory.js           key, chords, progressions, voice-leading, motifs, clash-avoidance
     render.js           offline arrangement + mastering → AudioBuffer
     wav.js              WAV encoder
+    mp3.js              MP3 encoder wrapper + ID3 tags
+    typing.js           typed keys → notes in time, in key, in tune with the chord
     soundEffects.js     UI sounds
     trackPlayer.js      playback of the rendered track
   form/                 questions.js (data) · formEngine.js (state & navigation)
-  components/           choice · cards · slider · text · field (audio-reactive lines) · results
-  styles/               base · landing · form · results
-tests/                  theory.test.mjs (npm test) · e2e.cjs (npm run test:e2e, Playwright)
+  components/           choice · cards · scale · slider · text · field (audio-reactive lines) · results
+  styles/               base · landing · form · results · school
+tests/                  npm test: theory, samples, typing, mp3, school · e2e.cjs, e2e-school.cjs (Playwright)
 ```
 
 ### Using the audio engine on its own
@@ -143,17 +175,19 @@ A *profile* is a plain object (`tempo`, `energy`, `bright`, `space`, `groove`, `
 ## Testing
 
 ```bash
-npm test            # music-theory checks: every chord diatonic, voicings in range and
-                    # voice-led, no melody note clashes with its chord, profile mapping
+npm test            # music-theory checks (every chord diatonic, voicings in range and voice-led,
+                    # no melody note clashes with its chord, profile mapping), the typing
+                    # instrument on thousands of simulated keystrokes, MP3 frames and tags,
+                    # the school survey's questions, sound map and name hook, the sample parser
 ```
 
-`npm run test:e2e` needs Playwright and a Chromium (`npm i -D playwright && npx playwright install chromium`). It drives the whole app — keyboard flow, Back, the multi-select limit, sound switch and its session persistence, mobile layout, reduced motion, a second run after "Start over", and strict validation of the downloaded WAV.
+`npm run test:e2e` (StickySound) and `npm run test:e2e:school` (school edition, including a frame-by-frame check of the downloaded MP3) need Playwright and a Chromium (`npm i -D playwright && npx playwright install chromium`). It drives the whole app — keyboard flow, Back, the multi-select limit, sound switch and its session persistence, mobile layout, reduced motion, a second run after "Start over", and strict validation of the downloaded WAV.
 
 The audio itself was verified by rendering offline and analysing the result — per-layer solo balance, spectral distribution, loudness curve across the arrangement, WAV validity (`ffprobe`/`ffmpeg`), and in-key energy — and the full journey was driven end to end in headless Chromium at desktop and phone sizes.
 
 ## Notes & limits
 
-* Audio export is WAV only (no MP3 encoder is bundled to keep the project dependency-free).
+* StickySound exports WAV; the school edition exports MP3 (LGPL encoder shipped as a separate file, with attribution to LAME).
 * Rendering the final track happens in the browser and is CPU-bound. It took ≈ 35 s in the slow, shared VM used for development (a 2-minute track at 44.1 kHz), and is expected to be considerably faster on current laptops and phones. The composing screen reports real progress, the live closing cadence covers the first ~8 s, and a reassurance message appears if it runs long.
 * On iOS the ringer switch no longer mutes Web Audio (`navigator.audioSession` is set to `playback`).
 * Fonts are bundled locally, so the page needs no network at all once served.

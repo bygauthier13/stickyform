@@ -1,7 +1,8 @@
 // The final reveal: "You made this." — a waveform player for the rendered
 // soundtrack, the layer timeline, a summary built from the user's own answers,
-// and a real WAV download.
+// and a real download (WAV, or MP3 for scenarios that ask for it).
 
+import { encodeMp3 } from '../audio/mp3.js';
 import { LAYER_NAMES } from '../audio/musicLayers.js';
 import { encodeWav } from '../audio/wav.js';
 import { clamp, h, ICONS, prefersReducedMotion } from './dom.js';
@@ -21,10 +22,15 @@ const safeName = (s) => s.normalize('NFKD').replace(/[^\x20-\x7e]/g, '').replace
  * @param {()=>Promise<void>|void} o.ensureSound  switch sound on before playing
  * @param {()=>void} o.onRestart  "start over"
  * @param {(count:number)=>void} [o.onLayer]  how many layers are sounding at the playhead
+ * @param {string[]} [o.layerNames]  names for the eight layers
+ * @param {object} [o.copy]  wording and extras that differ between products:
+ *   eyebrow, titleWords [{t, em}], sub, deckLabel, summaryLabel, wordsLead, footer (Node),
+ *   extra (Node | Node[] shown after the summary), format 'wav' | 'mp3', filename, tags (ID3)
  */
-export function mountResults(root, { result, player, summary, ensureSound, onRestart, onLayer }) {
+export function mountResults(root, { result, player, summary, ensureSound, onRestart, onLayer, layerNames = LAYER_NAMES, copy = {} }) {
   const { buffer, duration, markers, peaks } = result;
   const reduced = prefersReducedMotion();
+  const mp3 = copy.format === 'mp3';
 
   // ---------------------------------------------------------------- markup
   const canvas = h('canvas', { 'aria-hidden': 'true' });
@@ -49,7 +55,7 @@ export function mountResults(root, { result, player, summary, ensureSound, onRes
       { class: 'marker', style: `left:${(t / duration) * 100}%`, 'data-layer': String(i + 1) },
       h('i', { 'aria-hidden': 'true' }),
       h('span', { class: 'marker-n' }, String(i + 1)),
-      h('span', { class: 'marker-name' }, LAYER_NAMES[i]),
+      h('span', { class: 'marker-name' }, layerNames[i]),
     ),
   );
   const markersEl = h('ol', { class: 'markers', 'aria-label': 'When each layer enters' }, markerEls);
@@ -58,13 +64,14 @@ export function mountResults(root, { result, player, summary, ensureSound, onRes
   const tCur = h('span', { class: 'time-cur' }, '0:00');
   const playBtn = h('button', { class: 'play', type: 'button', 'aria-label': 'Play soundtrack', disabled: player.silent ? '' : null, title: player.silent ? 'Audio playback isn’t available in this browser' : null }, ICONS.play());
   const restartBtn = h('button', { class: 'btn-ghost', type: 'button' }, ICONS.restart(), h('span', {}, 'Restart'));
-  const sizeLabel = h('small', {}, `WAV · ${mb(buffer.length * 4)}`);
-  const dlBtn = h('button', { class: 'btn-solid', type: 'button' }, ICONS.download(), h('span', {}, 'Download'), sizeLabel);
+  const sizeLabel = h('small', {}, mp3 ? 'MP3' : `WAV · ${mb(buffer.length * 4)}`);
+  const dlText = mp3 ? 'Download MP3' : 'Download';
+  const dlBtn = h('button', { class: 'btn-solid', type: 'button' }, ICONS.download(), h('span', {}, dlText), sizeLabel);
 
   const deck = h(
     'section',
     { class: 'deck reveal', style: '--d:5', 'aria-labelledby': 'deck-label' },
-    h('p', { class: 'label', id: 'deck-label' }, 'Your soundtrack'),
+    h('p', { class: 'label', id: 'deck-label' }, copy.deckLabel ?? 'Your soundtrack'),
     h(
       'div',
       { class: 'player' },
@@ -83,7 +90,7 @@ export function mountResults(root, { result, player, summary, ensureSound, onRes
     ),
   );
 
-  const rows = [
+  const rows = summary.rows || [
     ['Energy', summary.energy],
     ['Mood', summary.mood],
     ['Style', summary.style],
@@ -95,7 +102,7 @@ export function mountResults(root, { result, player, summary, ensureSound, onRes
     ? h(
         'p',
         { class: 'words' },
-        'Your melody was shaped by ',
+        copy.wordsLead ?? 'Your melody was shaped by ',
         ...summary.words.flatMap((w, i) => [i ? ' and ' : '', h('em', {}, `“${w.length > 48 ? `${w.slice(0, 46)}…` : w}”`)]),
         '.',
       )
@@ -103,7 +110,7 @@ export function mountResults(root, { result, player, summary, ensureSound, onRes
   const summaryEl = h(
     'section',
     { class: 'summary reveal', style: '--d:7', 'aria-labelledby': 'sum-label' },
-    h('p', { class: 'label', id: 'sum-label' }, 'Your sound'),
+    h('p', { class: 'label', id: 'sum-label' }, copy.summaryLabel ?? 'Your sound'),
     h(
       'dl',
       { class: 'facts' },
@@ -116,26 +123,24 @@ export function mountResults(root, { result, player, summary, ensureSound, onRes
   const foot = h(
     'footer',
     { class: 'results-foot reveal', style: '--d:9' },
-    h('p', {}, 'Created with ', h('strong', {}, 'StickySound'), h('span', { class: 'sep' }, ' · '), 'Forms that sound different.'),
+    copy.footer || h('p', {}, 'Created with ', h('strong', {}, 'StickySound'), h('span', { class: 'sep' }, ' · '), 'Forms that sound different.'),
     restartLink,
   );
 
+  const titleWords = copy.titleWords || [{ t: 'You' }, { t: 'made' }, { t: 'this.', em: true }];
   const title = h(
     'h1',
     { class: 'results-title', id: 'results-title', tabindex: '-1' },
-    h('span', { class: 'w', style: '--d:1' }, 'You'),
-    ' ',
-    h('span', { class: 'w', style: '--d:2' }, 'made'),
-    ' ',
-    h('span', { class: 'w em', style: '--d:3' }, 'this.'),
+    ...titleWords.flatMap(({ t, em }, i) => [i ? ' ' : '', h('span', { class: em ? 'w em' : 'w', style: `--d:${i + 1}` }, t)]),
   );
   root.replaceChildren(
     h(
       'div',
       { class: 'results-inner' },
-      h('header', { class: 'results-head' }, h('p', { class: 'eyebrow reveal', style: '--d:0' }, 'Your soundtrack is ready'), title, h('p', { class: 'results-sub reveal', style: '--d:4' }, 'Your answers became a soundtrack.')),
+      h('header', { class: 'results-head' }, h('p', { class: 'eyebrow reveal', style: '--d:0' }, copy.eyebrow ?? 'Your soundtrack is ready'), title, h('p', { class: 'results-sub reveal', style: '--d:4' }, copy.sub ?? 'Your answers became a soundtrack.')),
       deck,
       summaryEl,
+      ...[copy.extra].flat().filter(Boolean),
       foot,
     ),
   );
@@ -225,7 +230,7 @@ export function mountResults(root, { result, player, summary, ensureSound, onRes
       lastCount = count;
       onLayer?.(count);
     }
-    const text = pos > 0.05 || player.playing ? `Layer ${layer + 1} of 8 · ${LAYER_NAMES[layer]}` : 'Press play to hear what you made';
+    const text = pos > 0.05 || player.playing ? `Layer ${layer + 1} of 8 · ${layerNames[layer]}` : copy.pressPlay ?? 'Press play to hear what you made';
     if (nowLayer.textContent !== text) {
       nowLayer.textContent = text;
       nowLayer.classList.remove('swap');
@@ -286,32 +291,70 @@ export function mountResults(root, { result, player, summary, ensureSound, onRes
   });
 
   // --------------------------------------------------------------- download
+  // The file is prepared ahead of time (MP3 encoding takes a few seconds), so the
+  // click usually just saves it. If MP3 encoding fails for any reason, the WAV is offered instead.
   let url = null;
-  let sizeKnown = false;
-  dlBtn.addEventListener('click', () => {
-    if (!url) {
-      const blob = encodeWav(buffer, {
-        INAM: `${summary.mood} ${summary.style} — StickySound`,
-        IART: 'You, with StickySound',
-        ICMT: `${summary.tempo}, ${summary.key}. Composed from your answers.`,
-        ISFT: 'StickySound',
-      });
+  let ext = mp3 ? 'mp3' : 'wav';
+  let filePromise = null;
+  const makeWav = () =>
+    encodeWav(buffer, {
+      INAM: copy.tags?.title || `${summary.mood} ${summary.style} — StickySound`,
+      IART: copy.tags?.artist || 'You, with StickySound',
+      ICMT: copy.tags?.comment || `${summary.tempo}, ${summary.key}. Composed from your answers.`,
+      ISFT: 'StickySound',
+    });
+  const label = dlBtn.querySelector('span');
+  const prepare = () =>
+    (filePromise ??= (mp3
+      ? encodeMp3(buffer, {
+          kbps: 128,
+          tags: copy.tags,
+          onProgress: (f) => {
+            if (!url) sizeLabel.textContent = `MP3 · preparing ${Math.round(f * 100)}%`;
+          },
+        }).catch((err) => {
+          console.warn('MP3 encoding failed, offering WAV instead:', err);
+          ext = 'wav';
+          return makeWav();
+        })
+      : Promise.resolve(makeWav())
+    ).then((blob) => {
       url = URL.createObjectURL(blob);
-      if (!sizeKnown) {
-        sizeLabel.textContent = `WAV · ${mb(blob.size)}`;
-        sizeKnown = true;
+      sizeLabel.textContent = `${ext.toUpperCase()} · ${mb(blob.size)}`;
+      return url;
+    }));
+  const warm = setTimeout(() => prepare().catch(() => {}), 1800);
+
+  let saving = false;
+  dlBtn.addEventListener('click', async () => {
+    if (saving) return;
+    saving = true;
+    try {
+      if (!url) {
+        label.textContent = 'Preparing…';
+        dlBtn.classList.add('is-busy');
       }
+      const href = await prepare();
+      const base = copy.filename || `StickySound - ${summary.mood} ${summary.style}`;
+      const a = h('a', { href, download: `${safeName(base)}.${ext}`, class: 'sr-only' });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      dlBtn.classList.remove('is-busy');
+      dlBtn.classList.add('done');
+      label.textContent = 'Saved';
+      setTimeout(() => {
+        dlBtn.classList.remove('done');
+        label.textContent = ext === 'mp3' ? 'Download MP3' : 'Download';
+      }, 2200);
+    } catch (err) {
+      console.error(err);
+      dlBtn.classList.remove('is-busy');
+      label.textContent = 'Couldn’t save';
+      setTimeout(() => (label.textContent = dlText), 2600);
+    } finally {
+      saving = false;
     }
-    const a = h('a', { href: url, download: `${safeName(`StickySound - ${summary.mood} ${summary.style}`)}.wav`, class: 'sr-only' });
-    document.body.append(a);
-    a.click();
-    a.remove();
-    dlBtn.classList.add('done');
-    dlBtn.querySelector('span').textContent = 'Saved';
-    setTimeout(() => {
-      dlBtn.classList.remove('done');
-      dlBtn.querySelector('span').textContent = 'Download';
-    }, 2200);
   });
 
   restartLink.addEventListener('click', () => onRestart?.());
@@ -328,6 +371,7 @@ export function mountResults(root, { result, player, summary, ensureSound, onRes
       cancelAnimationFrame(growRaf);
       ro.disconnect();
       offChange();
+      clearTimeout(warm);
       if (url) URL.revokeObjectURL(url);
       root.classList.remove('is-in');
     },

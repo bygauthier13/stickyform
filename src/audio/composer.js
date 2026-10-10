@@ -82,6 +82,8 @@ export class Composer {
     this.layers = createLayers(ctx, mixer, { live });
     this.voicing = null;
     this.cycle = null;
+    /** The last few scheduled bars (time, chord, melody notes) — what the typing instrument plays along with. */
+    this.timeline = [];
   }
 
   init(t, profile) {
@@ -112,7 +114,11 @@ export class Composer {
     const seed = (profile.seed ^ Math.imul(bar + 1, 2654435761)) >>> 0;
     const rnd = mulberry32(seed);
     const swing = profile.swing;
+    const entry = { bar, t0, barDur, stepDur, swing, chord, p: st.p, sounding: [] };
+    this.timeline.push(entry);
+    if (this.timeline.length > 8) this.timeline.shift();
     const env = {
+      entry,
       ctx,
       mixer,
       bank: this.bank,

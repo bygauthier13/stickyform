@@ -324,7 +324,9 @@ main {
   padding-inline: var(--gutter);
 }
 .screen-in {
-  animation: screenIn 0.8s var(--ease) both;
+  /* `backwards`, not `both`: keeping the final keyframe's transform would turn the screen
+     into the containing block of the fixed action bar, pushing it off a short phone screen */
+  animation: screenIn 0.8s var(--ease) backwards;
 }
 
 .eyebrow {
