@@ -369,7 +369,8 @@ export function createSchoolScenario({ schoolName = 'Elmwood Academy' } = {}) {
     finalLabel: 'Make our song',
     phrases: ['Gathering the sounds', 'Adding the drums', 'Sprinkling the sparkle', 'Wrapping it up'],
     accent: '#f2c46d',
-    layerNames: ['Dreamy hum', 'Little heartbeat', 'Bouncy bass', 'Drums', 'Chords', 'The tune', 'Sparkles', 'Big finish'],
+    // short, so the names under the timeline never run into each other
+    layerNames: ['Hum', 'Pulse', 'Bounce', 'Drums', 'Chords', 'Tune', 'Sparkle', 'Finale'],
     audience: (q) => ({ kind: q.audience, label: q.audience === 'parent' ? 'For you' : 'For your little one' }),
     results({ answers }) {
       const name = cleanName(answers.c8);
