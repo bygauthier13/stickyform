@@ -2,7 +2,7 @@
   "name": "stickysound",
   "version": "0.1.0",
   "private": true,
-  "description": "StickySound \u2014 a form that composes a soundtrack while you answer it.",
+  "description": "StickySound — a form that composes a soundtrack while you answer it.",
   "type": "module",
   "scripts": {
     "start": "node scripts/serve.mjs",
@@ -16,6 +16,7 @@
     "node": ">=18"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "playwright": "^1.56.1"
   }
 }

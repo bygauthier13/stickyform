@@ -13,18 +13,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-function loadPlaywright() {
-  const tries = [() => require('playwright'), () => require(require.resolve('playwright', { paths: [process.cwd(), '/opt/node22/lib/node_modules'] }))];
-  for (const t of tries) {
-    try {
-      return t();
-    } catch {
-      /* next */
-    }
-  }
-  console.error('Playwright not found. Install it with: npm i -D playwright');
-  process.exit(2);
-}
+const { loadPlaywright, launch } = require('./helpers/browser.cjs');
 const { chromium } = loadPlaywright();
 
 const PORT = 5180 + Math.floor(Math.random() * 100);
@@ -135,7 +124,7 @@ function parseWav(file) {
 (async () => {
   const server = spawn('node', [path.join(ROOT, 'scripts/serve.mjs')], { env: { ...process.env, PORT: String(PORT) }, stdio: 'ignore' });
   await new Promise((r) => setTimeout(r, 700));
-  const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+  const browser = await launch(chromium, { args: ['--autoplay-policy=no-user-gesture-required'] });
   const downloads = fs.mkdtempSync(path.join(os.tmpdir(), 'stickysound-'));
   const consoleProblems = [];
   const watch = (page, tag) => {

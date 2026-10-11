@@ -1,0 +1,77 @@
+  // --------------------------------------------------------------- download (preview build)
+  // The claude.ai viewer's sandbox blocks self-started downloads, so the file goes through the
+  // `downloads` capability. .wav and .mp3 are not on its allowlist, so the very same file is
+  // offered inside a store-only .zip when the original is refused. No fetch(): the page may not make requests.
+  let url = null; // kept so destroy() has nothing to revoke
+  const label = dlBtn.querySelector('span');
+  let ext = mp3 ? 'mp3' : 'wav';
+  let blobPromise = null;
+  const makeWav = () =>
+    encodeWav(buffer, {
+      INAM: copy.tags?.title || `${summary.mood} ${summary.style} — StickySound`,
+      IART: copy.tags?.artist || 'You, with StickySound',
+      ICMT: copy.tags?.comment || `${summary.tempo}, ${summary.key}. Composed from your answers.`,
+      ISFT: 'StickySound',
+    });
+  const prepare = () =>
+    (blobPromise ??= (mp3
+      ? encodeMp3(buffer, { kbps: 128, tags: copy.tags, onProgress: (f) => { sizeLabel.textContent = 'MP3 · preparing ' + Math.round(f * 100) + '%'; } }).catch((err) => { console.warn('MP3 failed, offering WAV', err); ext = 'wav'; return makeWav(); })
+      : Promise.resolve(makeWav())
+    ).then((blob) => { sizeLabel.textContent = ext.toUpperCase() + ' · ' + mb(blob.size); return blob; }));
+  const warm = setTimeout(() => prepare().catch(() => {}), 1800);
+  const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc32 = (bytes) => { let c = 0xffffffff; for (let i = 0; i < bytes.length; i++) c = crcTable[(c ^ bytes[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  async function makeZip(name, blob) {
+    const data = new Uint8Array(await blob.arrayBuffer());
+    const nameBytes = new TextEncoder().encode(name);
+    const d = new Date();
+    const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    const crc = crc32(data);
+    const put = (view, fields) => fields.forEach(([o, v, n]) => (n === 4 ? view.setUint32(o, v, true) : view.setUint16(o, v, true)));
+    const local = new DataView(new ArrayBuffer(30));
+    put(local, [[0, 0x04034b50, 4], [4, 20, 2], [6, 0x0800, 2], [8, 0, 2], [10, time, 2], [12, date, 2], [14, crc, 4], [18, data.length, 4], [22, data.length, 4], [26, nameBytes.length, 2], [28, 0, 2]]);
+    const central = new DataView(new ArrayBuffer(46));
+    put(central, [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0x0800, 2], [10, 0, 2], [12, time, 2], [14, date, 2], [16, crc, 4], [20, data.length, 4], [24, data.length, 4], [28, nameBytes.length, 2], [30, 0, 2], [32, 0, 2], [34, 0, 2], [36, 0, 2], [38, 0, 4], [42, 0, 4]]);
+    const end = new DataView(new ArrayBuffer(22));
+    put(end, [[0, 0x06054b50, 4], [4, 0, 2], [6, 0, 2], [8, 1, 2], [10, 1, 2], [12, 46 + nameBytes.length, 4], [16, 30 + nameBytes.length + data.length, 4], [20, 0, 2]]);
+    return new Blob([local, nameBytes, data, central, nameBytes, end], { type: 'application/zip' });
+  }
+  /** true if saved, false if the viewer said no */
+  async function previewSave(base, blob) {
+    const dl = await Promise.resolve(window.claude?.use?.('downloads')).catch(() => null);
+    if (!dl) throw new Error('downloads unavailable');
+    try {
+      await dl.save({ filename: base + '.' + ext, data: blob });
+    } catch (e) {
+      if (e?.code === 'declined') return false;
+      if (e?.code !== 'rejected_extension' && e?.code !== 'extension_not_enabled') throw e;
+      await dl.save({ filename: base + '.zip', data: await makeZip(base + '.' + ext, blob) }); // the same file, zipped
+    }
+    return true;
+  }
+
+  let saving = false;
+  dlBtn.addEventListener('click', async () => {
+    if (saving) return;
+    saving = true;
+    try {
+      if (!blobPromise) { label.textContent = 'Preparing…'; dlBtn.classList.add('is-busy'); }
+      const blob = await prepare();
+      const base = safeName(copy.filename || `StickySound - ${summary.mood} ${summary.style}`);
+      const saved = await previewSave(base, blob);
+      dlBtn.classList.remove('is-busy');
+      if (!saved) { label.textContent = dlText; return; }
+      dlBtn.classList.add('done');
+      label.textContent = 'Saved';
+      setTimeout(() => { dlBtn.classList.remove('done'); label.textContent = dlText; }, 2200);
+    } catch (err) {
+      console.error(err);
+      dlBtn.classList.remove('is-busy');
+      label.textContent = 'Couldn’t save';
+      setTimeout(() => (label.textContent = dlText), 2600);
+    } finally {
+      saving = false;
+    }
+  });
+
