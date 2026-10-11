@@ -3,3 +3,8 @@ node_modules/
 *.log
 dist-preview/
 .claude/skills/sticky-sound/reference/private/
+
+# sample library: never commit the owner's samples, file lists or generated catalogues
+data/
+liste*.txt
+assets/library/
