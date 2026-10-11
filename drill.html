@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>BUILD YOUR SOUND — BLOCK / 01 · StickySounds concept demo</title>
+    <meta name="description" content="10 answers. Your own drill soundtrack. An independent StickySounds concept demo for a fictional streetwear label." />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#0a0b0c" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+    <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="src/styles/drill.css" />
+  </head>
+  <body data-screen="landing" data-audio="off">
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="topbar">
+      <a class="logo" href="drill.html" aria-label="BLOCK / 01 — back to the start">BLOCK <span class="logo-slash">/</span> 01</a>
+      <p class="topbar-key" aria-label="Key F minor, tempo 140 beats per minute"><span>F MIN</span><span class="dot" aria-hidden="true">·</span><span>140 BPM</span></p>
+      <div class="transport" role="group" aria-label="Sound controls">
+        <button class="t-btn" id="t-play" type="button" aria-label="Pause music" disabled></button>
+        <button class="t-btn t-mute" id="t-mute" type="button" role="switch" aria-checked="true" aria-label="Turn sound on"></button>
+        <span class="t-label" id="t-mute-label" aria-hidden="true">Sound off</span>
+      </div>
+      <p class="sr-only" id="audio-state" role="status">Audio off</p>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <!-- 1 · Landing -->
+      <section class="landing" data-screen-section="landing" aria-labelledby="landing-title">
+        <div class="landing-inner">
+          <p class="eyebrow">BLOCK / 01 — Drill Edition</p>
+          <h1 class="landing-title" id="landing-title"><span>Build</span> <span>your</span> <span class="accent-word">sound</span></h1>
+          <p class="landing-sub">10 answers. Your own drill soundtrack.</p>
+          <p class="landing-how">Every answer adds or reshapes a layer — atmosphere, melody, 808, drums, vocal chops. Typing plays notes. At the end you get the track to play and download.</p>
+          <div class="landing-cta">
+            <button class="btn btn-primary btn-lg" id="start-sound" type="button"><span>Start with sound</span><span class="btn-arrow" aria-hidden="true">→</span></button>
+            <button class="btn btn-ghost btn-lg" id="start-silent" type="button">Continue without sound</button>
+          </div>
+          <p class="asset-status" id="asset-status" role="status" data-state="loading">Loading sounds…</p>
+          <p class="landing-meta">Headphones recommended · about 2 minutes · nothing you type is stored or sent</p>
+        </div>
+        <footer class="landing-foot">
+          <p class="signature">Powered by <b>StickySounds</b></p>
+          <p class="disclaimer">Independent concept demo — not an official brand campaign.</p>
+        </footer>
+      </section>
+
+      <!-- 2 · Survey -->
+      <section class="survey" data-screen-section="survey" hidden aria-label="Ten questions">
+        <div class="survey-grid">
+          <div class="survey-main">
+            <div class="progress">
+              <p class="q-count" aria-hidden="true"><b id="q-cur">01</b><span> / </span><span id="q-total">10</span></p>
+              <div class="p-track" id="p-track" role="progressbar" aria-label="Survey progress" aria-valuemin="1" aria-valuemax="10" aria-valuenow="1"><div class="p-fill" id="p-fill"></div></div>
+              <button class="link-btn" id="q-reset" type="button">Reset</button>
+            </div>
+            <form class="q-form" id="q-form" novalidate>
+              <div class="stage" id="stage"></div>
+            </form>
+            <nav class="actions" aria-label="Survey navigation">
+              <button class="btn btn-ghost btn-icon" id="q-back" type="button" aria-label="Previous question"><span aria-hidden="true">←</span><span class="btn-text">Back</span></button>
+              <span class="actions-spacer"></span>
+              <button class="btn btn-ghost" id="q-skip" type="button" hidden>Skip</button>
+              <button class="btn btn-primary" id="q-next" type="submit" form="q-form"><span id="q-next-label">Continue</span><span class="btn-arrow" aria-hidden="true">→</span></button>
+            </nav>
+          </div>
+          <aside class="studio-panel" aria-label="Your track so far">
+            <div class="studio-head">
+              <p class="label">Your track</p>
+              <p class="entry" id="entry" aria-hidden="true"></p>
+            </div>
+            <div class="studio" id="studio"></div>
+            <p class="studio-note">Each lit block is a note your answers put in the bar.</p>
+          </aside>
+        </div>
+
+      </section>
+
+      <!-- 3 · Results -->
+      <section class="results" id="results" data-screen-section="results" hidden aria-labelledby="results-title"></section>
+    </main>
+
+    <div class="sr-only" id="live" role="status" aria-live="polite"></div>
+    <script type="module" src="src/drill/main.js"></script>
+  </body>
+</html>

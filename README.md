@@ -109,6 +109,24 @@ How it is wired: `src/app.js` is the whole application, driven by a *scenario* (
 
 ---
 
+## UK Drill edition (`drill.html`)
+
+**BUILD YOUR SOUND** for **BLOCK / 01**, a fictional streetwear label — an independent concept demo of an
+interactive brand activation ("Powered by StickySounds"; not an official brand campaign). Ten questions build a UK
+drill track at 140 BPM in F minor: the first answer brings in the melody, another the 808, another the drums;
+typing plays notes in key; the title becomes a vocal-chop signature and goes on a personalised cover. At the end the
+57-second arrangement (intro, build, main, breakdown, main, ending) plays and downloads as a WAV.
+
+* Its own engine (`src/drill/`): one AudioContext created on *Start with sound*, one transport on the audio clock,
+  a pure composer shared by the live music and the offline render, an asset manifest
+  (`assets/drill/manifest.json`) that lets recorded samples or the owner's own stems replace any built-in sound.
+* Sounds: CC0 piano, recorder, glockenspiel and claps from the Versilian Community Sample Library; everything else
+  (drums, 808, pads, the synthetic vocal chops) is synthesised in the browser — see `assets/drill/PROVENANCE.md`.
+* Fair by design: the "would you explore this collection?" answer only picks one of three equally loud transitions.
+* Full documentation, the stem-replacement procedure and the listening/demo checklists: [`docs/drill-edition.md`](docs/drill-edition.md).
+
+---
+
 ## Download = the real track
 
 Pressing **Download** saves a 16-bit / 44.1 kHz stereo **WAV** (`src/audio/wav.js`) of the exact arrangement shown on screen — about two minutes: the eight layers entering in order, a breakdown, a drop, and a closing cadence that fades into the reverb tail. It is *not* a recording: the same `Composer` that plays live is run through an `OfflineAudioContext`, then mastered to ≈ −14 dBFS RMS with a soft-knee ceiling.
@@ -122,6 +140,7 @@ The file carries RIFF metadata (title, tempo and key). Scenarios can ask for **M
 ```
 index.html              StickySound
 school.html             StickySound for schools (parent survey + a song for the child)
+drill.html              UK Drill edition — BUILD YOUR SOUND (BLOCK / 01), see docs/drill-edition.md
 assets/                 bundled fonts (Instrument Serif, Inter — SIL OFL), favicon, vendor/lamejs (MP3, LGPL)
 scripts/serve.mjs       zero-dependency static dev server
 scripts/samples/        sample-library tools (see docs/sample-library.md)
@@ -146,7 +165,15 @@ src/
     trackPlayer.js      playback of the rendered track
   form/                 questions.js (data) · formEngine.js (state & navigation)
   components/           choice · cards · scale · slider · text · field (audio-reactive lines) · results
-  styles/               base · landing · form · results · school
+  styles/               base · landing · form · results · school · drill
+  drill/                the UK Drill edition (self-contained):
+    surveyConfig.js     the ten questions (musical job + brand insight)
+    answerToMusicMapper.js · musicalState.js   answers → plain musical state
+    theory.js · patterns.js · composer.js      F minor, drill patterns, per-bar composition (pure)
+    interaction.js      hover / selection / typing notes · analyticsAdapter.js  local events
+    audio/              audioEngine (live) · trackRenderer (offline + WAV) · instruments · mixer ·
+                        assetManifest (samples, stems, fallbacks) · dsp (synthesised sounds)
+    ui/                 questions · studio (layers + step grid) · cover · results · art
 tests/                  npm test: theory, samples, typing, mp3, school · e2e.cjs, e2e-school.cjs (Playwright)
 ```
 
@@ -178,10 +205,12 @@ A *profile* is a plain object (`tempo`, `energy`, `bright`, `space`, `groove`, `
 npm test            # music-theory checks (every chord diatonic, voicings in range and voice-led,
                     # no melody note clashes with its chord, profile mapping), the typing
                     # instrument on thousands of simulated keystrokes, MP3 frames and tags,
-                    # the school survey's questions, sound map and name hook, the sample parser
+                    # the school survey's questions, sound map and name hook, the sample parser,
+                    # and the drill edition (every composed note in F minor, Q9 neutrality, typing,
+                    # mapping, text handling, WAV, analytics, asset manifest and provenance)
 ```
 
-`npm run test:e2e` (StickySound) and `npm run test:e2e:school` (school edition, including a frame-by-frame check of the downloaded MP3) need Playwright and a Chromium (`npm i -D playwright && npx playwright install chromium`). It drives the whole app — keyboard flow, Back, the multi-select limit, sound switch and its session persistence, mobile layout, reduced motion, a second run after "Start over", and strict validation of the downloaded WAV.
+`npm run test:e2e:drill` drives the UK Drill edition (consent before any AudioContext, both journeys, layers entering on the bar, notes in key, no stacked loops, mute/pause/background tab, WAV validity, sample fallback, stems, phone layout, reduced motion). `npm run test:e2e` (StickySound) and `npm run test:e2e:school` (school edition, including a frame-by-frame check of the downloaded MP3) need Playwright and a Chromium (`npm i -D playwright && npx playwright install chromium`). It drives the whole app — keyboard flow, Back, the multi-select limit, sound switch and its session persistence, mobile layout, reduced motion, a second run after "Start over", and strict validation of the downloaded WAV.
 
 The audio itself was verified by rendering offline and analysing the result — per-layer solo balance, spectral distribution, loudness curve across the arrangement, WAV validity (`ffprobe`/`ffmpeg`), and in-key energy — and the full journey was driven end to end in headless Chromium at desktop and phone sizes.
 

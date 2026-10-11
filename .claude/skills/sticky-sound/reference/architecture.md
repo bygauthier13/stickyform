@@ -86,3 +86,28 @@ CSS tokens in `base.css`; Instrument Serif + Inter bundled as woff2 (SIL OFL). T
 chosen (`@property --accent`). Eight hairlines (`field.js`) are audio-reactive via per-layer analysers. `prefers-reduced-motion`
 respected; real radio/checkbox inputs; Enter/1–9/A–J keys. On phones the action bar is `position: fixed` — it only works
 if no ancestor keeps a `transform` (see lessons).
+
+## Drill edition (src/drill/, drill.html)
+
+Separate from `app.js`/scenarios: its musical logic (answer-driven layers, not progress thresholds) needed its own
+composer. Data flow: `surveyConfig` → `answerToMusicMapper.mapAnswers(answers, validated)` → `MusicalState` →
+`composer.composeBar(state, bar, section, { stems })` → events → `Instruments.play()` (live `AudioEngine` or offline
+`trackRenderer`). Variations follow the *selection*; layers enter on *validation*; nothing regresses.
+
+- **Theory:** F natural minor, Fm7 · Fm7 · Dbmaj7 · Cm7, 140 BPM, 16 steps per bar (fractions = triplets/32nds).
+- **Events:** `{ layer, part, inst, step, dur, midi, vel, glideFrom, vowel, extra }`. Grid for the visuals is built
+  from the scheduled events (onset = vel, held note = 0.32·vel, bed = 0.12).
+- **Transport:** bars composed 0.3 s ahead on the audio clock, 25 ms timer; `finish()` plays the ending's last bar;
+  `_leadInto(bar)` = swell from the next sixteenth + the Q9 fill's hits in the last beat.
+- **Sounds:** `dsp.js` renders every built-in sound to arrays (deterministic); `AssetBank` swaps in decoded samples,
+  zones (nearest zone + `tuneCents`), vowel zones or stems from the manifest; `_loopSlice` plays beds/stems bar by bar
+  with 6 ms complementary fades (measured: no click at joins). 808 = one sample at F1; a glide that follows on from the
+  previous note bends the same source (no `stop()` is ever called twice).
+- **Mix (measured, K-weighted, rel. to the lead melody):** 808 ≈ +2, snare ≈ +0.7, kick ≈ −2.7, second voice −4…−7,
+  hats −8…−11, pad −10, perc −12. `TRIM` in `instruments.js`, bus levels in `mixer.js` (bass bus level 0.24 after
+  the 808 measured 13 dB too loud). Live: atmosphere lifted ×2.7 while alone (−24 LUFS) → full mix −18.6 LUFS, peaks
+  −4.7 dBFS. Download: `master()` −13 dBFS RMS (85th pct of 0.5 s windows), soft ceiling −1 dBFS; player bus 0.8.
+- **Arrangement:** intro 4 · build 4 · main 8 · breakdown 4 · main 8 · outro 4 = 32 bars + 2.6 s tail = 57.5 s;
+  render ≈ 8 s in the sandbox (2-bar `suspend()` chunks).
+- **Interaction:** hover (first per card, mouse only, ≥ 90 ms apart, ≤ 3 gestures ringing), selection previews
+  (≤ 4), typing (`TypingPlanner`: next free sixteenth ≤ 0.33 s, ≤ 8/s, paste ≤ 3 notes, deletes silent).

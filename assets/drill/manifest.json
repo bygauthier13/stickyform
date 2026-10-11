@@ -1,0 +1,320 @@
+{
+  "about": "Asset manifest of the UK Drill edition. Every instrument has a built-in synthesised fallback ('synth'); 'zones' / 'samples' / 'stems' point to audio files relative to this file. See docs/drill-edition.md (Replacing the sounds).",
+  "version": 1,
+  "key": "F minor",
+  "bpm": 140,
+  "instruments": {
+    "kick": {
+      "kind": "oneshot",
+      "synth": "kick",
+      "gain": 1,
+      "provenance": "synth"
+    },
+    "snare": {
+      "kind": "oneshot",
+      "synth": "snare",
+      "gain": 1,
+      "provenance": "synth"
+    },
+    "clap": {
+      "kind": "oneshot",
+      "synth": "clap",
+      "gain": 1,
+      "samples": [
+        {
+          "src": "samples/clap/clap-1.wav"
+        },
+        {
+          "src": "samples/clap/clap-2.wav"
+        }
+      ],
+      "provenance": "vcsl-claps"
+    },
+    "hat": {
+      "kind": "oneshot",
+      "synth": "hat",
+      "gain": 1,
+      "provenance": "synth"
+    },
+    "ohat": {
+      "kind": "oneshot",
+      "synth": "openHat",
+      "gain": 1,
+      "provenance": "synth"
+    },
+    "crash": {
+      "kind": "oneshot",
+      "synth": "crash",
+      "gain": 1,
+      "provenance": "synth"
+    },
+    "rim": {
+      "kind": "oneshot",
+      "synth": "rim",
+      "gain": 1,
+      "provenance": "synth"
+    },
+    "perc": {
+      "kind": "oneshot",
+      "synth": "perc",
+      "gain": 1,
+      "provenance": "synth"
+    },
+    "shaker": {
+      "kind": "oneshot",
+      "synth": "shaker",
+      "gain": 1,
+      "provenance": "synth"
+    },
+    "808": {
+      "kind": "tonal",
+      "synth": "808",
+      "rootMidi": 29,
+      "gain": 1,
+      "provenance": "synth"
+    },
+    "piano": {
+      "kind": "multisample",
+      "synth": "keys",
+      "gain": 1,
+      "release": 0.35,
+      "zones": [
+        {
+          "src": "samples/piano/piano-53.wav",
+          "midi": 53,
+          "tuneCents": 0.7
+        },
+        {
+          "src": "samples/piano/piano-57.wav",
+          "midi": 57,
+          "tuneCents": 2.5
+        },
+        {
+          "src": "samples/piano/piano-61.wav",
+          "midi": 61,
+          "tuneCents": 2.2
+        },
+        {
+          "src": "samples/piano/piano-63.wav",
+          "midi": 63,
+          "tuneCents": 3.9
+        },
+        {
+          "src": "samples/piano/piano-65.wav",
+          "midi": 65,
+          "tuneCents": 1.7
+        },
+        {
+          "src": "samples/piano/piano-67.wav",
+          "midi": 67,
+          "tuneCents": 1.8
+        },
+        {
+          "src": "samples/piano/piano-69.wav",
+          "midi": 69,
+          "tuneCents": 1.2
+        },
+        {
+          "src": "samples/piano/piano-73.wav",
+          "midi": 73,
+          "tuneCents": 4.2
+        },
+        {
+          "src": "samples/piano/piano-75.wav",
+          "midi": 75,
+          "tuneCents": 2.0
+        },
+        {
+          "src": "samples/piano/piano-77.wav",
+          "midi": 77,
+          "tuneCents": 5.2
+        },
+        {
+          "src": "samples/piano/piano-81.wav",
+          "midi": 81,
+          "tuneCents": 9.5
+        }
+      ],
+      "provenance": "vcsl-upright-piano"
+    },
+    "flute": {
+      "kind": "multisample",
+      "synth": "flute",
+      "gain": 1,
+      "release": 0.22,
+      "attack": 0.012,
+      "zones": [
+        {
+          "src": "samples/flute/flute-65.wav",
+          "midi": 65,
+          "tuneCents": 4.6
+        },
+        {
+          "src": "samples/flute/flute-68.wav",
+          "midi": 68,
+          "tuneCents": 2.1
+        },
+        {
+          "src": "samples/flute/flute-70.wav",
+          "midi": 70,
+          "tuneCents": -3.4
+        },
+        {
+          "src": "samples/flute/flute-72.wav",
+          "midi": 72,
+          "tuneCents": -4.5
+        },
+        {
+          "src": "samples/flute/flute-74.wav",
+          "midi": 74,
+          "tuneCents": -2.8
+        },
+        {
+          "src": "samples/flute/flute-78.wav",
+          "midi": 78,
+          "tuneCents": 7.4
+        },
+        {
+          "src": "samples/flute/flute-80.wav",
+          "midi": 80,
+          "tuneCents": 2.5
+        },
+        {
+          "src": "samples/flute/flute-84.wav",
+          "midi": 84,
+          "tuneCents": -1.3
+        }
+      ],
+      "provenance": "vcsl-alto-recorder"
+    },
+    "glock": {
+      "kind": "multisample",
+      "synth": "bell",
+      "gain": 1,
+      "release": 0.5,
+      "zones": [
+        {
+          "src": "samples/glock/glock-79.wav",
+          "midi": 79,
+          "tuneCents": 8.4
+        },
+        {
+          "src": "samples/glock/glock-84.wav",
+          "midi": 84,
+          "tuneCents": 12.3
+        },
+        {
+          "src": "samples/glock/glock-91.wav",
+          "midi": 91,
+          "tuneCents": 12.1
+        },
+        {
+          "src": "samples/glock/glock-96.wav",
+          "midi": 96,
+          "tuneCents": 15.6
+        }
+      ],
+      "provenance": "vcsl-glockenspiel"
+    },
+    "pluck": {
+      "kind": "multisample",
+      "synth": "pluck",
+      "gain": 1,
+      "release": 0.12,
+      "provenance": "synth"
+    },
+    "bell": {
+      "kind": "multisample",
+      "synth": "bell",
+      "gain": 1,
+      "release": 0.5,
+      "provenance": "synth"
+    },
+    "pulse": {
+      "kind": "multisample",
+      "synth": "pulse",
+      "gain": 1,
+      "release": 0.04,
+      "provenance": "synth"
+    },
+    "acid": {
+      "kind": "multisample",
+      "synth": "acid",
+      "gain": 1,
+      "release": 0.05,
+      "provenance": "synth"
+    },
+    "vox": {
+      "kind": "vowels",
+      "synth": "vox",
+      "gain": 1,
+      "release": 0.12,
+      "provenance": "synth-voice"
+    }
+  },
+  "stems": {},
+  "stemTemplate": {
+    "melody/minimal": {
+      "src": "stems/melody-minimal.wav",
+      "bpm": 140,
+      "key": "F minor",
+      "bars": 4,
+      "gain": 0.8,
+      "provenance": "your-own-id"
+    }
+  },
+  "provenance": {
+    "synth": {
+      "name": "Built-in synthesis",
+      "author": "Generated in the browser by src/drill/audio/dsp.js (this repository)",
+      "source": "No recorded material",
+      "license": "Same terms as the repository code",
+      "modifications": "n/a",
+      "restrictions": "None beyond the repository's own terms"
+    },
+    "synth-voice": {
+      "name": "Synthetic vocal chops (formant synthesis)",
+      "author": "Generated in the browser by src/drill/audio/dsp.js (this repository)",
+      "source": "No recorded or cloned voice; abstract vowels (ah, oh, oo, eh) only",
+      "license": "Same terms as the repository code",
+      "modifications": "n/a",
+      "restrictions": "Must not be presented as a recorded human voice"
+    },
+    "vcsl-upright-piano": {
+      "name": "Upright Piano, Knight — Sustains, velocity layer 1 (11 notes, F3–A5)",
+      "author": "Versilian Studios LLC (VCSL); sampled by Simon Dalzell of Ivy Audio for the VSCO 2 Pro set (per the library's Info.txt)",
+      "source": "https://github.com/sgossner/VCSL/tree/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Chordophones/Zithers/Upright Piano, Knight/Sustains/",
+      "license": "CC0 1.0 Universal (public domain dedication)",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "modifications": "Mixed to mono, resampled to 32 kHz (SoX resampler), trimmed to the onset, cut to 2.2 s with a 0.55 s raised-cosine fade-out, loudness-matched across notes, peak-normalised to -1 dBFS, 16-bit with TPDF dither. File names use the measured MIDI note (the source names are one octave lower than scientific pitch).",
+      "restrictions": "None (CC0). No endorsement by Versilian Studios is implied."
+    },
+    "vcsl-alto-recorder": {
+      "name": "Baroque Alto Recorder — sustain with vibrato (8 notes, F4–C6)",
+      "author": "Versilian Studios LLC (VCSL)",
+      "source": "https://github.com/sgossner/VCSL/tree/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/SusVib/",
+      "license": "CC0 1.0 Universal (public domain dedication)",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "modifications": "Mixed to mono, resampled to 32 kHz, trimmed 6 ms before the onset, cut to 2.0 s with a 0.45 s fade-out, loudness-matched, peak-normalised to -1 dBFS, 16-bit with dither. Named by measured MIDI note.",
+      "restrictions": "None (CC0). No endorsement implied."
+    },
+    "vcsl-glockenspiel": {
+      "name": "Glockenspiel — soft mallets (4 notes, G5–C7 sounding)",
+      "author": "Versilian Studios LLC (VCSL)",
+      "source": "https://github.com/sgossner/VCSL/tree/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck Idiophones/Glockenspiel/",
+      "license": "CC0 1.0 Universal (public domain dedication)",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "modifications": "Mixed to mono, trimmed, cut to 1.8 s with a 0.6 s fade-out, loudness-matched, peak-normalised to -1 dBFS, 16-bit with dither. Named by sounding pitch; the measured +8 to +16 cent offset is corrected at playback (tuneCents).",
+      "restrictions": "None (CC0). No endorsement implied."
+    },
+    "vcsl-claps": {
+      "name": "Claps — SoloClap velocity layers 3 and 4",
+      "author": "Versilian Studios LLC (VCSL)",
+      "source": "https://github.com/sgossner/VCSL/tree/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck Idiophones/Claps/",
+      "license": "CC0 1.0 Universal (public domain dedication)",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "modifications": "Mixed to mono, trimmed to the onset, cut to 0.34 s with a 0.12 s fade-out, peak-normalised to -1 dBFS, 16-bit with dither. Layered under the synthesised snare.",
+      "restrictions": "None (CC0). No endorsement implied."
+    }
+  }
+}

@@ -35,6 +35,14 @@ Read this first, then the reference files only when the task needs them:
 5. **Sample-library toolkit** (`scripts/samples/`, `docs/sample-library.md`): parses sample file *names* into a
    catalogue (loop/one-shot, BPM, key, instrument group, genres, kits). Paused until the owner's full file list arrives.
 6. **Preview tooling** (`scripts/preview/`): single-file builds for claude.ai Artifact links, plus a strict-CSP smoke test.
+7. **UK Drill edition** (`drill.html`, `src/drill/`, branch `claude/elegant-einstein-arrz3e`): "BUILD YOUR SOUND" for
+   the fictional label **BLOCK / 01** — an independent concept demo ("Powered by StickySounds", not an official
+   campaign). 10 questions, F minor, 140 BPM, half-time; each validated answer brings in or reshapes a layer on the
+   next bar (atmosphere, melody, 808, drums, vocal chops); hover/selection/typing play notes in key; the title becomes
+   a synthetic vocal-chop signature and goes on a generated cover; a 57 s arrangement renders offline and downloads
+   as WAV. Own engine (one context, one transport, pure composer shared by live and offline), an asset manifest
+   (`assets/drill/manifest.json`) where samples or the owner's stems replace any sound, CC0 VCSL samples (piano,
+   recorder, glockenspiel, claps) + browser synthesis. Full doc: `docs/drill-edition.md`.
 
 Preview links (private to the owner): school edition https://claude.ai/artifact/2H75CvDSzHqnCUiQKU1TfZ ·
 original StickySound https://claude.ai/artifact/GZWiK7ziQMwFuTfjHSNY9X (older build, before typed notes and MP3).
@@ -55,6 +63,7 @@ npm start                  # dev server (no build step, no runtime dependencies)
 npm test                   # pure tests: theory 5731 · samples 337 · typing 45355 · mp3 247 · school 5396 checks
 npm run test:e2e           # StickySound in headless Chromium (25 checks, ~2.5 min: the render takes ~45 s here)
 npm run test:e2e:school    # school edition incl. a frame-by-frame MP3 check (14 checks)
+npm run test:e2e:drill     # UK Drill edition (18 checks, ~70 s: WAV, consent, layers, stems, phone, reduced motion)
 npm run samples:index -- list.txt --root sounds/packs --out data/samples-index
 node scripts/preview/build.mjs school|stickysound   # → dist-preview/ (needs esbuild)
 ```
@@ -81,6 +90,12 @@ Lint (no config in the repo): ESLint with `ecmaVersion 2023`, browser globals, `
 - **Name:** "StickySound" stays for now. A US registration "STICKY SOUNDS" (speakers, reg. 5120765) exists and has not
   been checked; "Songform" is taken. Verify trademarks and domains before any launch.
 
+**Drill edition decisions:** one key and tempo (F minor, 140 BPM) — stems in another key or tempo are refused, not
+retuned; Q9 ("would you explore…") must stay neutral (same events, loudness and accent; excluded from the humanisation
+seed; tested); free text never leaves the device or the analytics; no LLM at runtime; the vocal chops are formant
+synthesis and must not be called a recorded voice; a hidden tab pauses the music; the download is the exact buffer the
+player plays. Never put the name of a real agency, brand or client in this public repo.
+
 ## Open work, in rough priority
 
 1. **Owner's call, pending:** PR base branch (create an empty `main` and merge, recommended; or create `main` and
@@ -94,3 +109,5 @@ Lint (no config in the repo): ESLint with `ecmaVersion 2023`, browser globals, `
 4. **Sample library:** get the full file list, build the catalogue, audio pass on ~1,000 chosen files, loop mode.
 5. **B2B product:** template-first (not a general form builder), five hand-sold pilots before building accounts/billing.
 6. Check real-device render time and the feel of typed notes on a phone.
+7. **Drill edition:** the owner's listening pass (checklist in `docs/drill-edition.md`), Safari/iOS and Android
+   checks, the owner's own stems/808/vocal one-shots through the manifest, a hosted link for demos.

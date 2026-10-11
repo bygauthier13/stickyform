@@ -44,3 +44,18 @@
   lookups (RDAP) failed from here — availability of names/domains is unverified.
 - The claude.ai preview viewer blocks `<a download>`, `fetch`, any network, and refuses `.wav`/`.mp3` through the `downloads`
   capability (allowlist), hence the zip fallback in `scripts/preview/`.
+
+## Drill edition (October 2026)
+
+- **Measure loudness K-weighted, per part, in solo** (scratch tool: render the arrangement keeping only one part,
+  BS.1770-like weighting in numpy). Plain RMS hid that the 808 was 13 dB and the kick 11.6 dB too loud; the limiter
+  was flat-topping every bar (crest ≈ 3 dB). After the fix: crest ≈ 12 dB, peaks −1.6 to −2 dBFS.
+- A "neutral" answer can leak through a side channel: the humanisation seed included Q9, so the hats changed with the
+  answer. The test now compares the whole track outside the fills for the three answers.
+- The leaving question stayed clickable during its 140 ms fade: a fast tap could change the previous answer → `inert`.
+- Limiting interface sounds per *note* starved selection accents (a preview is up to six notes) → limit per gesture.
+- VCSL sample names are one octave below scientific pitch, glockenspiel files sound ~+10 cents sharp: measure every
+  file (YIN/FFT) and store `tuneCents`.
+- Playwright treats `aria-disabled="true"` buttons as disabled for `click()`.
+- Sandbox: freesound.org, commons.wikimedia.org and opengameart.org are blocked (proxy 403); GitHub raw files work.
+  `git ls-tree -l` on a `--filter=blob:none` clone downloads every blob (it needs sizes) — use `--name-only`.
