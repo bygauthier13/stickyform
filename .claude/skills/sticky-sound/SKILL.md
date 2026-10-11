@@ -45,7 +45,8 @@ Read this first, then the reference files only when the task needs them:
    recorder, glockenspiel, claps) + browser synthesis. Full doc: `docs/drill-edition.md`.
 
 Preview links (private to the owner): school edition https://claude.ai/artifact/2H75CvDSzHqnCUiQKU1TfZ ·
-original StickySound https://claude.ai/artifact/GZWiK7ziQMwFuTfjHSNY9X (older build, before typed notes and MP3).
+original StickySound https://claude.ai/artifact/GZWiK7ziQMwFuTfjHSNY9X (older build, before typed notes and MP3) ·
+UK Drill edition https://claude.ai/artifact/RXLVWgpYVsSJhLTJCkdpn1 (`dist-preview/drill.html`; the WAV downloads zipped there).
 Republishing the same file path keeps a URL.
 
 ## How it is built (one paragraph)
@@ -65,7 +66,8 @@ npm run test:e2e           # StickySound in headless Chromium (25 checks, ~2.5 m
 npm run test:e2e:school    # school edition incl. a frame-by-frame MP3 check (14 checks)
 npm run test:e2e:drill     # UK Drill edition (18 checks, ~70 s: WAV, consent, layers, stems, phone, reduced motion)
 npm run samples:index -- list.txt --root sounds/packs --out data/samples-index
-node scripts/preview/build.mjs school|stickysound   # → dist-preview/ (needs esbuild)
+node scripts/preview/build.mjs school|stickysound|drill   # → dist-preview/ (needs esbuild: npm ci)
+node scripts/preview/smoke-drill.cjs [mobile]              # drill preview under the viewer's CSP
 ```
 
 Lint (no config in the repo): ESLint with `ecmaVersion 2023`, browser globals, `no-unused-vars`/`no-undef`; keep it clean.

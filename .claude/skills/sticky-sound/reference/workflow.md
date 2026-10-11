@@ -28,7 +28,7 @@
 ## Previews (claude.ai Artifact links)
 
 `node scripts/preview/build.mjs school` → `dist-preview/school.html`; check it with
-`node scripts/preview/smoke.cjs school [mobile]`; publish with the Artifact tool (`capabilities: {"downloads": true}`;
+`node scripts/preview/smoke.cjs school [mobile]` (drill edition: `build.mjs drill`, then `smoke-drill.cjs [mobile]`); publish with the Artifact tool (`capabilities: {"downloads": true}`;
 icon on first publish; same file path keeps the URL). Previews are private to the owner until they share them.
 Load the `artifact-capabilities` skill before passing `capabilities`.
 

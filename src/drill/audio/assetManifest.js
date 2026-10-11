@@ -265,23 +265,38 @@ export class AssetBank {
 
 // -------------------------------------------------------------------- loading
 
+const fromBase64 = (b64) => {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out.buffer;
+};
+
 /**
  * Load the manifest and its audio files. Resolves with a bank in every case —
  * at worst a synthesis-only one — and reports progress through `onProgress`.
  *
- * @param {{ url?: string, sampleRate?: number, onProgress?: (done:number, total:number)=>void }} [o]
+ * `inline` serves a page that may not make requests (the claude.ai preview build):
+ * `{ manifest, files: { "samples/…wav": base64 } }` replaces every fetch.
+ *
+ * @param {{ url?: string, sampleRate?: number, onProgress?: (done:number, total:number)=>void, inline?: object|null }} [o]
  */
-export async function loadAssets({ url = MANIFEST_URL, sampleRate = D.SR, onProgress } = {}) {
+export async function loadAssets({ url = MANIFEST_URL, sampleRate = D.SR, onProgress, inline = globalThis.__DRILL_INLINE_ASSETS__ || null } = {}) {
   let manifest = BUILT_IN_MANIFEST;
   let manifestError = null;
   try {
-    const res = await fetchWithTimeout(url);
-    const json = await res.json();
+    const json = inline ? inline.manifest : await (await fetchWithTimeout(url)).json();
     if (!json || typeof json !== 'object' || typeof json.instruments !== 'object') throw new Error('not a manifest');
     manifest = json;
   } catch (err) {
     manifestError = String(err?.message || err);
   }
+  const readFile = async (src) => {
+    if (!inline) return (await fetchWithTimeout(resolveUrl(url, src))).arrayBuffer();
+    const b64 = inline.files?.[src];
+    if (typeof b64 !== 'string') throw new Error('not embedded in this build');
+    return fromBase64(b64);
+  };
   const bank = new AssetBank(manifest, sampleRate);
   if (manifestError) bank.report.failed.push({ id: 'manifest', src: url, reason: manifestError });
 
@@ -293,7 +308,7 @@ export async function loadAssets({ url = MANIFEST_URL, sampleRate = D.SR, onProg
         const bufs = [];
         for (const s of def.samples) {
           try {
-            bufs.push(await decode(await (await fetchWithTimeout(resolveUrl(url, s.src))).arrayBuffer(), sampleRate));
+            bufs.push(await decode(await readFile(s.src), sampleRate));
           } catch (err) {
             bank.report.failed.push({ id: name, src: s.src, reason: String(err?.message || err) });
           }
@@ -311,7 +326,7 @@ export async function loadAssets({ url = MANIFEST_URL, sampleRate = D.SR, onProg
           def.zones.map(async (z) => {
             if (!isNum(z.midi)) return bank.report.rejected.push({ id: name, src: z.src, reason: 'zone needs a midi note' });
             try {
-              const buffer = await decode(await (await fetchWithTimeout(resolveUrl(url, z.src))).arrayBuffer(), sampleRate);
+              const buffer = await decode(await readFile(z.src), sampleRate);
               zones.push({ midi: z.midi, tuneCents: isNum(z.tuneCents) ? z.tuneCents : 0, vowel: z.vowel, buffer });
             } catch (err) {
               bank.report.failed.push({ id: name, src: z.src, reason: String(err?.message || err) });
@@ -339,7 +354,7 @@ export async function loadAssets({ url = MANIFEST_URL, sampleRate = D.SR, onProg
     }
     job(async () => {
       try {
-        const buffer = await decode(await (await fetchWithTimeout(resolveUrl(url, stem.src))).arrayBuffer(), sampleRate);
+        const buffer = await decode(await readFile(stem.src), sampleRate);
         const expected = (240 / BPM) * stem.bars;
         if (Math.abs(buffer.duration - expected) > 0.05 && buffer.duration < expected) throw new Error(`stem is ${buffer.duration.toFixed(2)} s, expected ${expected.toFixed(2)} s`);
         bank.stems.set(key, { buffer, bars: stem.bars, gain: isNum(stem.gain) ? stem.gain : 1 });

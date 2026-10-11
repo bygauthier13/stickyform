@@ -7,7 +7,9 @@ be tried on a phone without running anything.
 npm i -D esbuild
 node scripts/preview/build.mjs school          # → dist-preview/school.html   (git-ignored)
 node scripts/preview/build.mjs stickysound     # → dist-preview/stickysound.html
+node scripts/preview/build.mjs drill           # → dist-preview/drill.html (UK Drill edition, samples embedded, ~4.5 MB)
 node scripts/preview/serve-wrapped.mjs dist-preview/school.html   # test it under the viewer's strict CSP
+node scripts/preview/smoke-drill.cjs [mobile]  # the drill journey under that CSP, downloads stubbed to the real allowlist
 ```
 
 Publish with the Artifact tool: `file_path` = the built page, `capabilities: {"downloads": true}`, an `icon`
@@ -27,3 +29,11 @@ offered inside a store-only `.zip`. A real deployment serves plain files and dow
 (reject `.wav`/`.mp3` with `{code: 'rejected_extension'}`, record what is saved afterwards), play the whole journey,
 click Download, unzip the result and check it with `ffprobe`. The last preview passed this on desktop and phone with
 no console messages: the zip held a valid 2 min 9 s MP3 with its ID3 tags.
+
+## The drill edition
+
+`build.mjs drill` embeds `assets/drill/manifest.json` and every sample it lists as base64
+(`window.__DRILL_INLINE_ASSETS__`, read by `loadAssets()` instead of `fetch`), swaps `src/drill/ui/save.js` for
+`drill-save.js` (the viewer's `downloads` allowlist has no `.wav`, so the WAV goes inside a store-only `.zip` — the
+button says *Download WAV (.zip)*), keeps the artifact's own `<title>`, and lets the viewer's safe-area padding place
+the sticky bar. Publish with `capabilities: {"downloads": true}`.

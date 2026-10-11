@@ -8,6 +8,7 @@ import { QUESTIONS, optionOf } from '../surveyConfig.js';
 import { trackToWav } from '../audio/trackRenderer.js';
 import { ICON } from './art.js';
 import { renderCover } from './cover.js';
+import { SAVE_LABEL, releaseSaved, saveFile } from './save.js';
 
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const mb = (bytes) => `${(bytes / 1048576).toFixed(1)} MB`;
@@ -32,7 +33,6 @@ export function mountResults(root, o) {
   const { state, answers, facts, title } = o;
   let result = null;
   let player = null;
-  let url = null;
   let exporting = false;
   let destroyed = false;
   let raf = 0;
@@ -48,7 +48,7 @@ export function mountResults(root, o) {
   const status = h('p', { class: 'render-status', role: 'status' }, 'Mixing your track… 0%');
   const meter = h('span', { class: 'render-meter', 'aria-hidden': 'true' }, h('i', {}));
   const retryBtn = h('button', { class: 'btn btn-ghost', type: 'button', hidden: '' }, 'Try again');
-  const dlLabel = h('span', {}, 'Download WAV');
+  const dlLabel = h('span', {}, SAVE_LABEL);
   const dlSize = h('small', { class: 'btn-meta' }, 'preparing');
   const dlBtn = h('button', { class: 'btn btn-primary', type: 'button', disabled: '' }, ICON.download(), dlLabel, dlSize);
   const againBtn = h('button', { class: 'btn btn-ghost', type: 'button' }, ICON.restart(), h('span', {}, 'Start again'));
@@ -245,18 +245,18 @@ export function mountResults(root, o) {
     try {
       const blob = trackToWav(result, { title });
       if (!blob || blob.size < 1000) throw new Error('empty file');
-      if (url) URL.revokeObjectURL(url);
-      url = URL.createObjectURL(blob);
-      const a = h('a', { href: url, download: `${safeFilename(title)} - BLOCK 01 drill.wav`, class: 'sr-only' });
-      document.body.append(a);
-      a.click();
-      a.remove();
+      const saved = await saveFile(blob, `${safeFilename(title)} - BLOCK 01 drill.wav`);
+      if (!saved) {
+        // the person declined the save: nothing happened, nothing to report
+        dlLabel.textContent = SAVE_LABEL;
+        return;
+      }
       o.analytics.track('export_completed', { seconds: result.duration, bytes: blob.size });
       dlLabel.textContent = 'Saved';
       dlBtn.classList.add('is-done');
       setTimeout(() => {
         if (destroyed) return;
-        dlLabel.textContent = 'Download WAV';
+        dlLabel.textContent = SAVE_LABEL;
         dlBtn.classList.remove('is-done');
       }, 2400);
     } catch (err) {
@@ -289,8 +289,7 @@ export function mountResults(root, o) {
       ro.disconnect();
       offs.forEach((off) => off());
       player?.dispose();
-      if (url) URL.revokeObjectURL(url);
-      url = null;
+      releaseSaved();
       result = null;
     },
   };
