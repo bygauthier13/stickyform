@@ -7,10 +7,14 @@
   "scripts": {
     "start": "node scripts/serve.mjs",
     "dev": "node scripts/serve.mjs",
-    "test": "node tests/theory.test.mjs && node tests/samples.test.mjs && node tests/typing.test.mjs && node tests/mp3.test.mjs && node tests/school.test.mjs",
+    "test": "node tests/theory.test.mjs && node tests/samples.test.mjs && node tests/samples-select.test.mjs && node tests/typing.test.mjs && node tests/mp3.test.mjs && node tests/school.test.mjs",
     "test:e2e": "node tests/e2e.cjs",
     "samples:index": "node scripts/samples/build-index.mjs",
-    "test:e2e:school": "node tests/e2e-school.cjs"
+    "test:e2e:school": "node tests/e2e-school.cjs",
+    "samples:genres": "node scripts/samples/propose-genres.mjs",
+    "samples:select": "node scripts/samples/select.mjs",
+    "samples:analyse": "node scripts/samples/analyse.mjs",
+    "test:aac": "node tests/e2e-aac.cjs"
   },
   "engines": {
     "node": ">=18"

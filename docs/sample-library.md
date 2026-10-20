@@ -1,69 +1,117 @@
-# Sample library — paused work, ready to resume
+# Sample library
 
 **Goal.** Let the music engine draw on the owner's ~9,500 Splice samples (loops and one-shots):
 a catalogue the engine (and later an LLM "composer") can pick from, so every track is different.
 
-## Done (branch `claude/brave-volta-8atohg`)
-- `scripts/samples/parse.mjs` — reads a sample's **path/name** and returns: loop or one-shot, BPM, key (+ Camelot code),
-  instrument group (drums, bass, harmony, melody, vocal, music, texture, fx), wet/dry, tags, genres from the pack name,
-  and `kit` (tempo/key written in a folder name). Uncertain things are flagged for the audio pass.
-- `scripts/samples/build-index.mjs` — builds `<out>.json`, `<out>.csv`, an editable `<out>-packs.json`, prints a report.
-  Per-pack corrections via `--packs data/pack-overrides.json` (genres, defaultGroup, defaultKind, skip).
-- `tests/samples.test.mjs` — 337 checks against ~70 real file names (`npm test`).
-- Usage: see `scripts/samples/README.md`.
+**Two rules that never bend.** The library and the owner's music projects are **read-only**: nothing in them is
+moved, renamed, deleted or re-tagged. And nothing personal reaches this public repository — no sample, no
+catalogue, no pack name, no path from the owner's machine. Everything generated lands in `data/` or
+`assets/library/`, both git-ignored; the private per-library tables live there too.
 
-## Resume steps (recommended route: Claude Code running on the owner's Mac)
+## The toolkit (`scripts/samples/`)
 
-A cloud session cannot see the Mac and blocks Drive/iCloud, so the simplest route is a **local** Claude Code
-session in a clone of this repo: it reads the Splice folder directly, nothing is uploaded, the samples never leave the
-machine. `.gitignore` already excludes `data/`, `liste*.txt` and `assets/library/`, so no list, catalogue or sound can
-be committed by accident.
+| File | What it does |
+|---|---|
+| `parse.mjs` | one path → loop or one-shot, BPM, key (+ Camelot), instrument group, wet/dry, tags, genres, kit |
+| `build-index.mjs` | a list of paths → `<out>.json` / `.csv` / `-packs.json` and a report |
+| `genres.mjs` | the generic "what a pack name gives away" rules — narrow keyword patterns only |
+| `propose-genres.mjs` | fills a genre in for every pack the parser left at `?`, without overwriting any it found |
+| `styles.mjs` | the eight style families, the style targets (tempo band, key, transposition limits), tempo steps |
+| `select.mjs` | what a given style can actually play, with quotas per engine layer and a cap per pack |
+| `wav.mjs` | a dependency-free WAV reader plus the measurements (levels, trim, spectrum, chroma, bars) |
+| `analyse.mjs` | reads the chosen samples and writes one JSON line per file, resumable |
 
-1. One time: Node 18+ (`node -v`), `git clone` the repo, `git checkout claude/brave-volta-8atohg`, `npm install`,
-   drop the private memory file into `.claude/skills/sticky-sound/reference/private/`.
-2. File list (names only):
-   `find "$HOME/Splice - bygauthier/sounds" -type f \( -iname "*.wav" -o -iname "*.aif*" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.ogg" \) > ~/Desktop/liste-splice.txt`
-   then `wc -l ~/Desktop/liste-splice.txt` (expect about 9,500).
-3. Catalogue: `npm run samples:index -- ~/Desktop/liste-splice.txt --root sounds/packs --out data/samples-index`
-   and read the report (packs, tempos, keys, unknowns). Fix pack genres in `data/samples-index-packs.json`
-   (copy it to `data/pack-overrides.json` and pass `--packs`).
-4. Audio pass on a selection of ~600–1,000 files (the "Plan once the list is in" section below, step 2).
-5. Convert the selection to ~128 kbps OGG/MP3 into `assets/library/` (about 100–200 MB, git-ignored).
-6. Loop mode + rule-based selector + quality gate (plan steps 3–4), then the LLM composer (plan step 6).
-7. Owner listens and gives 👍/👎 on whole tracks. Claude cannot hear: its checks are measurements, the ears decide.
-8. Only for the online product: host the chosen ~800 sounds (bucket/CDN), not the 8 GB.
+```sh
+npm run samples:index -- liste.txt --root sounds/packs --out data/samples-index
+npm run samples:genres                                   # → data/pack-overrides.json + a review CSV
+npm run samples:select -- --style stickysound --count 800
+npm run samples:select -- --style drill --count 400
+npm run samples:analyse                                  # reads audio; needs data/library-root.txt
+```
 
-Open decision for step 6: run the LLM **offline** (Claude writes many ready "recipes" that ship with the app,
-no backend) or **at runtime** (an API call per track: needs a small backend and a key). Start offline.
+`data/library-root.txt` holds the one line that says where the library is. It is git-ignored, which is how the
+owner's path stays out of the repository.
 
-## Where it stopped
-1. The owner's Mac has the real library in `~/Splice - bygauthier/sounds/packs/<Pack>/…` (the `~/Desktop/SAMPLES`
-   folder is only a 124-file copy of some packs, 287 MB). Total library is ~8 GB.
-2. Still needed: the **full file list** (names only, ~1–2 MB), made with:
-   `find <sounds folder> -type f \( -iname "*.wav" -o -iname "*.aif*" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.ogg" \) > ~/Desktop/liste-splice.txt`
-   (drag the `sounds` folder from Finder into Terminal after typing `find `). Then:
-   `npm run samples:index -- liste-splice.txt --root sounds/packs --out data/samples-index`
-3. **How to get the list to Claude:** the cloud sandbox blocks Google Drive / iCloud / Dropbox / WeTransfer
-   (HTTP 403 on CONNECT) and the chat only carries pasted text and images. Working route: GitHub web upload
-   (Add file → Upload files) onto this branch, under `data/`. **The repo is currently public** — make it private first
-   (Settings → Danger Zone → Change visibility) before uploading anything from the library.
-4. For the audio itself (only ~1,000 chosen samples are needed, not 8 GB): allow `drive.google.com` and
-   `*.googleusercontent.com` in the environment's Network access (session title-bar menu → Edit), then share a Drive link.
+## Where it stands
 
-## Plan once the list is in
-1. Run the index, review the report (packs, tempos, keys, unknown kinds), fix pack genres in the packs table.
-2. Audio pass on a selection of ~600–1,000 files: real duration/bars, loudness, brightness, pitch, true BPM/key
-   (half/double-time check), dry/wet. Resolve `kind-unknown`.
-3. **Loop mode** in the engine: each of the 8 layers = loops from compatible kits (same BPM, compatible Camelot key,
-   ideally same pack); drums/FX are key-free and can be mixed across packs; pitched one-shots are retuned to the key;
-   the engine still sequences one-shots on the loop grid; risers/impacts/UI sounds stay synthesised.
-4. Quality gate: normalise by measured loudness, avoid stacking two sub-heavy loops, render offline, measure
-   (loudness, clipping, spectral balance), re-roll if it fails. A 👍/👎 in the preview logs good combinations.
-5. Hosting: compact index in the app; sounds in a bucket; each track fetches ~20–40 sounds.
-6. Selection starts as code (rules + seeded randomness from the answers); an LLM plugs into the same interface later
-   (catalogue in, choices out; the engine validates ids, tempo and key).
+**Catalogue: 9,412 files, 2,489 packs** (1,427 of them a single file). 5,764 loops, 3,101 one-shots, 547 the
+names could not settle. 5,725 loops carry a tempo; only 2,513 files carry a key.
+
+**Genres.** The parser read a genre for 1,057 packs. `propose-genres.mjs` adds 131 from the private
+`data/pack-curated.json` ("this artist sounds like X") and 351 from generic keywords, leaving 950 packs — 1,659
+files — deliberately empty, because a wrong genre is worse than none.
+
+**Style families.** Eight, in `styles.mjs`: `lofi`, `soul`, `house`, `urban`, `bass`, `afrolatin`, `pop`,
+`cinematic`. Every genre tag maps to one.
+
+**Selections.** `stickysound` (90–126 BPM, D minor = F major): 821 samples from 467 packs. `drill`
+(132–158 BPM, F minor = A♭ major): 400 samples from 246 packs. Vocals that sing words are kept and tagged
+`lyrics: true` / `schoolSafe: false`; the school edition filters them out.
+
+**Audio pass.** 2,064 files read, 2,062 measured, 2 failed (AIFF, which the reader does not handle).
+
+## What the audio pass settled, and what it did not
+
+Reliable, and now the basis for the next steps:
+
+- **526 of the 545 unknown files are resolved**: 402 are loops (their length is a whole number of bars at a
+  plausible tempo), 124 are one-shots (under 1.2 s), 19 remain undecided.
+- **Tempos in names are trustworthy, mostly**: of 1,153 files whose tempo could be checked, 1,009 last a round
+  number of bars (1, 2, 4, 8, 16, 32) and **111 do not** — those names are wrong and must not be believed.
+- **16 dB of loudness spread** (RMS p10 −27.7, p90 −11.3 dBFS): every sample has to be normalised by measurement.
+- **469 files are sub-heavy** (over 40 % of their energy below 120 Hz) — never stack two of them.
+- **126 files clip** (peak ≥ −0.1 dBFS) and **644 carry over 100 ms of trailing silence**.
+
+**Key detection failed, and must not be used.** Several chroma extractors were measured against the 491 files
+whose key is written in the name: the best reached **45 % correct, with 15 % of the energy still outside the
+scale even at the right answer**. Summing harmonics made it worse, not better — folding a peak's third harmonic
+onto a fundamental adds a fifth, which is exactly the +5 / +7 semitone confusion the errors showed.
+`guessScale()` therefore reports `reliable: false` and nothing is allowed to act on it. The honest consequences:
+
+- loops whose key is in the name are usable (that is what the selections are built from);
+- the 431 tonal loops without a key in their name stay unusable for now;
+- fixing this needs a real key-detection tool (offline, e.g. Essentia or librosa — never in the browser) or the
+  owner's ears. It is a decision to take, not a bug to fix in `wav.mjs`.
+
+## Playing loops: what the engine must do
+
+**Web Audio ties playback speed to pitch.** `playbackRate` is the only control there is, so a loop cannot be
+transposed or stretched in the browser without changing the other. Everything is therefore **pre-rendered
+offline**: each tonal loop is rendered once per tempo it is needed at, already in the style's key, and played
+back at rate 1.0.
+
+- **Tempo steps.** In loop mode the engine locks to a step (96 / 104 / 112 / 120 by default) and each tonal loop
+  is pre-rendered to the steps within 10 % of its own tempo. The steps are a setting, not a constant:
+  `--tempo-steps 92,100,108,116,124`, read through `stepsFor()`. **The synthetic engine is untouched** — it keeps
+  the continuous tempo it glides to today, because a synthesised note is generated at whatever tempo is asked for.
+  For `stickysound` this is 528 tonal renders plus 522 single copies.
+- **Transposition limits** (`MAX_SHIFT`): chords, pads and plucks survive a fourth (±5); a voice loses its
+  formants and a bass its weight (±3); a full-mix loop drags its drums along (±2).
+- **Never `loop = true`.** Measured in Chromium (`npm run test:aac`): AAC decodes **416 frames — 9.4 ms — longer**
+  than the source. The audio itself does not move (first sound +0 frames, last beat +0 frames); the extra is
+  silence at the end. Starting every loop at the exact instant of its bar is therefore sample-accurate, while
+  looping the buffer would drift by 9.4 ms per repeat. **Safari/WebKit has not been measured yet** — it is the
+  engine that matters on iPhone (`npx playwright install webkit`, then rerun).
+- **AAC, not Ogg.** `.m4a` at 128 kbps, encoded with macOS's own `afconvert`, which needs nothing installed.
+  Safari does not play Ogg Vorbis, and the school edition is made for phones.
+
+## Still to do
+
+1. Install the offline stretcher: Homebrew, then `brew install rubberband` (not present on the machine; neither
+   are ffmpeg or sox). `rubberband -p <semitones> -t <ratio> -F in.wav out.wav` does pitch and time in one pass.
+2. Pre-render the selections into `assets/library/` as `.m4a`, normalised by the measured loudness, trimmed with
+   the measured silences, at the tempo steps in each sample's `renderAt`.
+3. Loop mode in the engine: each of the eight layers draws loops from compatible kits; drums and FX are key-free
+   and can cross packs; pitched one-shots are retuned; risers, impacts and UI sounds stay synthesised.
+4. Quality gate: render offline and measure (loudness, clipping, spectral balance, two sub-heavy loops stacked),
+   re-roll on failure. A 👍/👎 in previews logs the combinations that work.
+5. Decide the key question above, which unlocks 431 more loops and the thin Harmony layer.
+6. Hosting, for the online product only: a compact index in the app, the sounds in a bucket, ~20–40 per track.
+7. Selection stays rule-based (seeded by the answers); an LLM plugs into the same interface later — catalogue in,
+   ids out, the engine validating ids, tempo and key. Never give it thousands of rows: 100–200 per style.
 
 ## Notes
+
 - Licence: the owner states the Splice rights are fine as long as the final output is a complete track. Serving
-  raw files from a public bucket was not confirmed separately with Splice.
-- Naming: "StickySound" stays for now; a US registration "STICKY SOUNDS" (reg. 5120765, speakers) exists — unchecked.
+  raw files from a public bucket was not confirmed separately with Splice. No Splice material trains any model.
+- The parser's tests use invented names that copy the shape of real packs; the real ones stay out of the repo.
