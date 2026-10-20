@@ -99,11 +99,13 @@ back at rate 1.0.
   rotated by exactly N. On a sample of rendered files, 24 of 25 transposed files and **15 of 15 untransposed
   tonal files** came back exactly right. The handful of apparent mismatches are drum loops, whose chroma is
   noise and whose best rotation is therefore meaningless.
-- **Never `loop = true`.** Measured in Chromium (`npm run test:aac`): AAC decodes **416 frames — 9.4 ms — longer**
-  than the source. The audio itself does not move (first sound +0 frames, last beat +0 frames); the extra is
-  silence at the end. Starting every loop at the exact instant of its bar is therefore sample-accurate, while
-  looping the buffer would drift by 9.4 ms per repeat. **Safari/WebKit has not been measured yet** — it is the
-  engine that matters on iPhone (`npx playwright install webkit`, then rerun).
+- **Never `loop = true`, and never time anything from `buffer.duration`.** Measured in both engines
+  (`npm run test:aac`) on the same 8.000 s file: **Chromium decodes 416 frames — 9.4 ms — longer** than the
+  source, **Safari/WebKit decodes it gapless**, to the exact frame. In both, the audio itself does not move
+  (first sound +0 frames, last beat +0 frames); Chromium simply appends silence. So a decoded buffer's length is
+  a property of the browser, not of the music: looping the buffer would hold time on Safari and drift 9.4 ms per
+  repeat on Chrome. Loop mode must schedule every loop at the exact instant of its bar, from the bar count in
+  the library index, and ignore the buffer's length entirely.
 - **AAC, not Ogg.** `.m4a` at 128 kbps, encoded with macOS's own `afconvert`, which needs nothing installed.
   Safari does not play Ogg Vorbis, and the school edition is made for phones.
 
@@ -117,9 +119,8 @@ back at rate 1.0.
 4. Quality gate: render offline and measure (loudness, clipping, spectral balance, two sub-heavy loops stacked),
    re-roll on failure. A 👍/👎 in previews logs the combinations that work.
 5. Decide the key question above, which unlocks 431 more loops and the thin Harmony layer.
-6. Measure Safari: `npx playwright install webkit`, then `npm run test:aac`.
-7. Hosting, for the online product only: a compact index in the app, the sounds in a bucket, ~20–40 per track.
-8. Selection stays rule-based (seeded by the answers); an LLM plugs into the same interface later — catalogue in,
+6. Hosting, for the online product only: a compact index in the app, the sounds in a bucket, ~20–40 per track.
+7. Selection stays rule-based (seeded by the answers); an LLM plugs into the same interface later — catalogue in,
    ids out, the engine validating ids, tempo and key. Never give it thousands of rows: 100–200 per style.
 
 ## Notes
