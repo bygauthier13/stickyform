@@ -274,3 +274,112 @@ export function barsAt(duration, bpm) {
     isLoop: Math.abs(bars / whole - 1) <= 0.02 && [1, 2, 4, 8, 16, 32].includes(whole),
   };
 }
+
+// ---------------------------------------------------------------- channels and writing
+
+/** One Float32Array per channel, in -1..1 — what the renderer works on. */
+export function toChannels(w) {
+  const { data, bytes, channels, frames, format } = w;
+  const scale = { 1: 1 / 128, 2: 1 / 32768, 3: 1 / 8388608, 4: 1 / 2147483648 }[bytes];
+  const out = Array.from({ length: channels }, () => new Float32Array(frames));
+  for (let i = 0; i < frames; i++) {
+    for (let c = 0; c < channels; c++) {
+      const o = (i * channels + c) * bytes;
+      let v;
+      if (format === 3) v = bytes === 8 ? data.readDoubleLE(o) : data.readFloatLE(o);
+      else if (bytes === 1) v = (data[o] - 128) * scale;
+      else if (bytes === 2) v = data.readInt16LE(o) * scale;
+      else if (bytes === 3) v = ((data[o] | (data[o + 1] << 8) | (data[o + 2] << 16)) << 8 >> 8) * scale;
+      else v = data.readInt32LE(o) * scale;
+      out[c][i] = v;
+    }
+  }
+  return out;
+}
+
+/**
+ * A 32-bit float WAV buffer. Float keeps the renderer's intermediate files free of
+ * quantisation noise; only the final AAC encode leaves the float domain.
+ */
+export function encodeWav(chans, sampleRate) {
+  const channels = chans.length;
+  const frames = chans[0].length;
+  const bodyBytes = frames * channels * 4;
+  const b = Buffer.alloc(44 + bodyBytes);
+  b.write('RIFF', 0); b.writeUInt32LE(36 + bodyBytes, 4); b.write('WAVE', 8);
+  b.write('fmt ', 12); b.writeUInt32LE(16, 16); b.writeUInt16LE(3, 20); b.writeUInt16LE(channels, 22);
+  b.writeUInt32LE(sampleRate, 24); b.writeUInt32LE(sampleRate * channels * 4, 28);
+  b.writeUInt16LE(channels * 4, 32); b.writeUInt16LE(32, 34);
+  b.write('data', 36); b.writeUInt32LE(bodyBytes, 40);
+  let o = 44;
+  for (let i = 0; i < frames; i++) for (let c = 0; c < channels; c++) { b.writeFloatLE(chans[c][i], o); o += 4; }
+  return b;
+}
+
+/** Cut or zero-pad every channel to exactly `frames` samples. */
+export function fitTo(chans, frames) {
+  return chans.map((ch) => {
+    if (ch.length === frames) return ch;
+    const out = new Float32Array(frames);
+    out.set(ch.subarray(0, Math.min(ch.length, frames)));
+    return out;
+  });
+}
+
+/** A short fade at both ends, so a cut never clicks. Lengths are in samples. */
+export function fade(chans, inLen, outLen) {
+  for (const ch of chans) {
+    for (let i = 0; i < Math.min(inLen, ch.length); i++) ch[i] *= i / inLen;
+    for (let i = 0; i < Math.min(outLen, ch.length); i++) {
+      const k = ch.length - 1 - i;
+      if (k >= 0) ch[k] *= i / outLen;
+    }
+  }
+  return chans;
+}
+
+/**
+ * Scale to a target RMS, but never let the peak go above `ceilingDb`.
+ * Returns the gain applied, so a render can report how far it moved a sample.
+ */
+export function normalise(chans, targetRmsDb = -20, ceilingDb = -1) {
+  let sum = 0;
+  let peak = 0;
+  let n = 0;
+  for (const ch of chans) {
+    for (let i = 0; i < ch.length; i++) { sum += ch[i] * ch[i]; const a = Math.abs(ch[i]); if (a > peak) peak = a; }
+    n += ch.length;
+  }
+  const rms = Math.sqrt(sum / (n || 1));
+  if (rms <= 0 || peak <= 0) return 1;
+  const wanted = 10 ** (targetRmsDb / 20) / rms;
+  const allowed = 10 ** (ceilingDb / 20) / peak;
+  const g = Math.min(wanted, allowed);
+  for (const ch of chans) for (let i = 0; i < ch.length; i++) ch[i] *= g;
+  return g;
+}
+
+/**
+ * The strongest frequency in a signal, by parabolic interpolation on the spectrum.
+ * Used to check that a pitch shift moved a tone by exactly what was asked.
+ */
+export function dominantHz(x, sampleRate, size = 16384) {
+  const w = hann(size);
+  const n = Math.min(size, x.length);
+  const re = new Float64Array(size);
+  const im = new Float64Array(size);
+  const off = Math.max(0, Math.floor((x.length - n) / 2));
+  for (let i = 0; i < n; i++) re[i] = x[off + i] * w[i];
+  fft(re, im);
+  let best = 1;
+  let bestMag = 0;
+  for (let k = 1; k < size / 2; k++) {
+    const m = Math.hypot(re[k], im[k]);
+    if (m > bestMag) { bestMag = m; best = k; }
+  }
+  const m0 = Math.hypot(re[best - 1], im[best - 1]);
+  const m1 = bestMag;
+  const m2 = Math.hypot(re[best + 1], im[best + 1]);
+  const d = (0.5 * (m0 - m2)) / (m0 - 2 * m1 + m2 || 1e-9);
+  return ((best + d) * sampleRate) / size;
+}

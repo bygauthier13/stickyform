@@ -80,3 +80,33 @@ a quota per engine layer, at most 6 files from one pack per layer and 18 overall
 Each chosen sample carries what the pre-render needs: `timeShift` (as is / half-time / double-time), `stretchPct`,
 `semitones`, and `renderAt` — the tempo steps that loop can be rendered to without smearing. Vocals that sing
 actual words are kept but tagged `lyrics: true` / `schoolSafe: false`; the school edition must filter them out.
+
+## Pre-rendering a selection
+
+```sh
+npm run samples:render -- --style stickysound          # → assets/library/stickysound/*.m4a
+npm run samples:render -- --style drill --force        # re-render, overwriting
+npm run test:render                                    # checks rubberband does what we assume
+```
+
+Web Audio ties playback speed to pitch: `playbackRate` is the only control, so a loop cannot be transposed or
+stretched in the browser without changing the other. Every loop is therefore rendered **offline**, already in
+the style's key and already at a tempo step, and the engine plays it at rate 1.0.
+
+For each selected sample the renderer:
+
+1. reads the source (read-only — the library is never written to) and converts to float;
+2. trims the leading silence **of one-shots only** — on a loop that silence is the start of its bar;
+3. normalises to `--target-rms` (−20 dBFS by default) with a −1 dBFS peak ceiling;
+4. runs `rubberband -3` once for both the transposition (`semitones`) and the tempo (`timeRatio`),
+   with `-F` when the pitch actually moves, so a voice keeps its formants;
+5. cuts or pads a loop to **exactly** its number of bars at the target tempo, with a short fade at each end;
+6. re-applies the peak ceiling — stretching can lift a peak — and encodes to AAC 128 kbps with `afconvert`.
+
+A tonal loop is rendered once per reachable tempo step; a drum or FX loop carries no pitch, so one render at the
+nearest step is enough; a one-shot has no tempo at all. Files already on disk are skipped, so a run can be
+stopped and resumed. `assets/library/index-<style>.json` lists every rendered file with its tempo, bars,
+semitones, measured level, sub ratio and `schoolSafe` flag — that index is what the engine loads.
+
+`rubberband` is not bundled: install it (`brew install rubberband`) and point `--rubberband` or `$RUBBERBAND`
+at it. `tests/render.test.mjs` skips itself when it is missing.

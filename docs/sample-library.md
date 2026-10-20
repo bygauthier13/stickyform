@@ -50,6 +50,10 @@ files — deliberately empty, because a wrong genre is worse than none.
 
 **Audio pass.** 2,064 files read, 2,062 measured, 2 failed (AIFF, which the reader does not handle).
 
+**Pre-render.** `stickysound` is rendered: **1,050 files, 151 MB** in `assets/library/stickysound/`, no failures,
+every loop landing on its exact bar length (worst case 0.46 ms out) and every file peaking at −1 dBFS.
+`drill` has not been rendered yet.
+
 ## What the audio pass settled, and what it did not
 
 Reliable, and now the basis for the next steps:
@@ -87,6 +91,14 @@ back at rate 1.0.
   For `stickysound` this is 528 tonal renders plus 522 single copies.
 - **Transposition limits** (`MAX_SHIFT`): chords, pads and plucks survive a fourth (±5); a voice loses its
   formants and a bass its weight (±3); a full-mix loop drags its drums along (±2).
+- **The stretcher is rubberband 4**, called once per file for pitch and tempo together (`-3` for the fine engine,
+  `-F` when the pitch moves). `tests/render.test.mjs` measures it rather than trusting it: a +5 semitone shift
+  lands within 2 Hz, a tempo change lands within 30 ms and does not move the pitch.
+- **The transposition was verified on the finished library**, not just on test tones. Absolute key detection is
+  unreliable, but the *relative* move is not: a loop shifted by N semitones must come back with its chroma
+  rotated by exactly N. On a sample of rendered files, 24 of 25 transposed files and **15 of 15 untransposed
+  tonal files** came back exactly right. The handful of apparent mismatches are drum loops, whose chroma is
+  noise and whose best rotation is therefore meaningless.
 - **Never `loop = true`.** Measured in Chromium (`npm run test:aac`): AAC decodes **416 frames — 9.4 ms — longer**
   than the source. The audio itself does not move (first sound +0 frames, last beat +0 frames); the extra is
   silence at the end. Starting every loop at the exact instant of its bar is therefore sample-accurate, while
@@ -97,17 +109,17 @@ back at rate 1.0.
 
 ## Still to do
 
-1. Install the offline stretcher: Homebrew, then `brew install rubberband` (not present on the machine; neither
-   are ffmpeg or sox). `rubberband -p <semitones> -t <ratio> -F in.wav out.wav` does pitch and time in one pass.
-2. Pre-render the selections into `assets/library/` as `.m4a`, normalised by the measured loudness, trimmed with
-   the measured silences, at the tempo steps in each sample's `renderAt`.
+1. **Listen.** Nothing below is worth doing before the owner has heard a rendered track: the measurements say
+   the files are correct, not that they sound good.
+2. Render `drill` too (400 samples, ~670 more files), once the first style has been listened to.
 3. Loop mode in the engine: each of the eight layers draws loops from compatible kits; drums and FX are key-free
    and can cross packs; pitched one-shots are retuned; risers, impacts and UI sounds stay synthesised.
 4. Quality gate: render offline and measure (loudness, clipping, spectral balance, two sub-heavy loops stacked),
    re-roll on failure. A 👍/👎 in previews logs the combinations that work.
 5. Decide the key question above, which unlocks 431 more loops and the thin Harmony layer.
-6. Hosting, for the online product only: a compact index in the app, the sounds in a bucket, ~20–40 per track.
-7. Selection stays rule-based (seeded by the answers); an LLM plugs into the same interface later — catalogue in,
+6. Measure Safari: `npx playwright install webkit`, then `npm run test:aac`.
+7. Hosting, for the online product only: a compact index in the app, the sounds in a bucket, ~20–40 per track.
+8. Selection stays rule-based (seeded by the answers); an LLM plugs into the same interface later — catalogue in,
    ids out, the engine validating ids, tempo and key. Never give it thousands of rows: 100–200 per style.
 
 ## Notes
